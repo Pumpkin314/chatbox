@@ -1,4 +1,6 @@
 import { type RemoteConfig, Theme } from '@shared/types'
+import AuthGuard from '@/components/auth/AuthGuard'
+import { initAuth } from '@/chatbridge/auth'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import Toasts from '@/components/common/Toasts'
 import ExitFullscreenButton from '@/components/layout/ExitFullscreenButton'
@@ -42,7 +44,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { ThemeProvider } from '@mui/material/styles'
 import { useQuery } from '@tanstack/react-query'
 import { createRootRoute, Outlet, useLocation } from '@tanstack/react-router'
-import { useAtomValue, useSetAtom } from 'jotai'
+import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useEffect, useMemo, useRef } from 'react'
 import SettingsModal, { navigateToSettings } from '@/modals/Settings'
 import { prefetchModelRegistry } from '@/packages/model-registry'
@@ -139,6 +141,13 @@ function Root() {
   const setOpenAboutDialog = useUIStore((s) => s.setOpenAboutDialog)
 
   const setRemoteConfig = useSetAtom(atoms.remoteConfigAtom)
+  const jotaiStore = useStore()
+
+  // Initialize Supabase auth listener once
+  useEffect(() => {
+    const unsubscribe = initAuth(jotaiStore)
+    return () => unsubscribe?.()
+  }, [jotaiStore])
 
   useEffect(() => {
     if (initialized.current) {
@@ -255,24 +264,26 @@ function Root() {
     <Box className="box-border App relative" spellCheck={spellCheck} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <BackgroundImageOverlay />
       {platform.type === 'desktop' && (getOS() === 'Windows' || getOS() === 'Linux') && <ExitFullscreenButton />}
-      <Grid container className="h-full relative z-[1]">
-        <Sidebar />
-        <Box
-          className="h-full w-full"
-          sx={{
-            flexGrow: 1,
-            ...(showSidebar
-              ? language === 'ar'
-                ? { paddingRight: { sm: `${sidebarWidth}px` } }
-                : { paddingLeft: { sm: `${sidebarWidth}px` } }
-              : {}),
-          }}
-        >
-          <ErrorBoundary name="main">
-            <Outlet />
-          </ErrorBoundary>
-        </Box>
-      </Grid>
+      <AuthGuard>
+        <Grid container className="h-full relative z-[1]">
+          <Sidebar />
+          <Box
+            className="h-full w-full"
+            sx={{
+              flexGrow: 1,
+              ...(showSidebar
+                ? language === 'ar'
+                  ? { paddingRight: { sm: `${sidebarWidth}px` } }
+                  : { paddingLeft: { sm: `${sidebarWidth}px` } }
+                : {}),
+            }}
+          >
+            <ErrorBoundary name="main">
+              <Outlet />
+            </ErrorBoundary>
+          </Box>
+        </Grid>
+      </AuthGuard>
       {/* 对话设置 */}
       {/* <AppStoreRatingDialog /> */}
       {/* 代码预览 */}
