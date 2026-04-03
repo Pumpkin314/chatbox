@@ -114,6 +114,32 @@
 - [ ] Set env vars: `vercel env add VITE_SUPABASE_URL`, `vercel env add VITE_SUPABASE_ANON_KEY`
 - [ ] Verify: deployed app loads, existing chat works
 
+### PR 0.2: Live app exploration — validate existing system analysis (BACKGROUNDED)
+**Branch:** none (read-only exploration, no code changes)
+**Depends on:** nothing (runs in parallel with PR 0.1)
+**Existing code touched:** none
+**TDD:** no
+**Execution:** Backgrounded agent with Chrome MCP against `pnpm dev:web`
+
+This agent boots the real web app locally and validates that our exploration findings match actual runtime behavior. Any discrepancy discovered here updates the CLAUDE.md files and may revise Sprint 1+ plans before we commit to them.
+
+**Verification criteria:**
+- [ ] `pnpm dev:web` starts successfully — note the local URL and any console warnings
+- [ ] App loads in browser — confirm layout structure matches our analysis (sidebar, chat area, message list)
+- [ ] Settings page: confirm provider config UI exists, API key fields render for OpenAI
+- [ ] Enter an OpenAI API key → send a test message → confirm streaming response works
+- [ ] Confirm message persistence mechanism: refresh page → do messages survive? (validates IndexedDB/localforage finding)
+- [ ] Inspect Artifact component: find a way to trigger an artifact render (if possible) → confirm iframe sandbox attributes match our documentation (`allow-scripts allow-forms`, no `allow-same-origin`)
+- [ ] Check platform detection: confirm `CHATBOX_BUILD_PLATFORM=web` disables Electron APIs (no `window.electronAPI` in console)
+- [ ] Check existing tool support: if web search tool exists, trigger it → confirm tool call flow matches our stream-text.ts analysis
+- [ ] Identify the exact insertion point for the side panel in the chat layout DOM — which parent container, what flex structure
+- [ ] Document any discrepancies from our existing system analysis
+
+**Output:** Report of findings. If discrepancies found:
+1. Update relevant CLAUDE.md files
+2. Flag specific plan items that may need revision
+3. Note any blockers discovered (e.g., dev:web doesn't start, missing dependencies)
+
 **Sprint 0 gate (Chrome browser):**
 - [ ] Open tab → navigate to deployed URL → verify: app loads → open settings → verify: provider settings UI renders → add OpenAI key → send test message → verify: streaming response appears
 - [ ] Open tab → browser console → verify: no Supabase connection errors in console
@@ -566,7 +592,7 @@
 ## Dependency Graph
 
 ```
-Sprint 0: PR 0.1 (tracer bullet)
+Sprint 0: PR 0.1 (tracer bullet) ‖ PR 0.2 (live app exploration, backgrounded)
               │
 Sprint 1: PR 1.1 (auth) → PR 1.2 (persistence) → PR 1.3 (token logging)
               │
@@ -586,7 +612,7 @@ Sprint 4: PR 4.1 (error handling + ambiguous routing) ←── Sprint 3
 
 | Sprint | Parallel PRs | Sequential Dependencies |
 |--------|-------------|----------------------|
-| 0 | PR 0.1 (solo) | — |
+| 0 | PR 0.1 ‖ PR 0.2 (parallel — 0.2 is backgrounded live exploration) | 0.2 findings may update CLAUDE.md and revise Sprint 1+ |
 | 1 | PR 1.1 → 1.2 → 1.3 (sequential chain) | Auth before persistence before logging |
 | 2 | PR 2.1 solo, then 2.2 ‖ 2.3 parallel, then 2.4, then 2.5 | Registry first, panel+routing parallel, chess needs both, context needs chess |
 | 3 | PR 3.1 ‖ PR 3.2 ‖ PR 3.3 (all parallel) | All depend on Sprint 2 completion but independent of each other |
