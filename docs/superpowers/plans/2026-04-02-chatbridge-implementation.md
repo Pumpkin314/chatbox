@@ -297,6 +297,7 @@ This agent boots the real web app locally and validates that our exploration fin
 - [ ] PostMessage origin validated on both host and app side
 - [ ] CSP meta tag added to host page preventing inline script injection from app content
 - [ ] Close button clears activeApp and removes iframe
+- [ ] Switching apps while one is active shows "Are you sure? Your progress will not be saved." confirmation dialog before closing current app
 - [ ] Panel width is 380px, chat area takes remaining flex space
 - [ ] Regression: chat message list scroll behavior unchanged
 
