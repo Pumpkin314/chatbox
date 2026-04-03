@@ -10,8 +10,10 @@ Platform abstraction layer — separates Electron, Web, Mobile, and Test platfor
 - `interfaces.ts`: Platform interface contract
 
 ## Patterns
-- Platform selected at runtime based on environment (Electron API presence)
-- WebPlatform: no native filesystem, no IPC, no electron-store
+- Platform selected at runtime based on `window.electronAPI` presence
+- **IMPORTANT:** `pnpm dev:web` still runs inside Electron, so DesktopPlatform activates even with CHATBOX_BUILD_PLATFORM=web. WebPlatform only activates in production web builds (`pnpm build:web && pnpm serve:web`) or pure browser environments with no `window.electronAPI`.
+- For true web-platform testing during dev, use: `pnpm build:web && pnpm serve:web`
+- WebPlatform: no native filesystem, no IPC, no electron-store. Knowledge base and URL parsing throw errors.
 - All platform access goes through the Platform interface — never call Electron APIs directly
 - Storage: IndexedDB via localforage for web builds
 
