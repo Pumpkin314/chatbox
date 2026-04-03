@@ -23,6 +23,7 @@ import {
   type ProviderOptions,
   type StreamTextResult,
 } from '../../../shared/types'
+import { logTokenUsageFromResult } from '../../chatbridge/token-logger'
 import { mcpController } from '../mcp/controller'
 import { convertToModelMessages, injectModelSystemPrompt } from './message-utils'
 import { imageOCR } from './preprocess'
@@ -48,7 +49,7 @@ async function handleSearchResult(
   coreMessages: ModelMessage[],
   controller: AbortController,
   onResultChange: OnResultChange,
-  params: { providerOptions?: ProviderOptions; onStatusChange?: OnStatusChange }
+  params: { providerOptions?: ProviderOptions; onStatusChange?: OnStatusChange; sessionId?: string }
 ) {
   if (!result?.searchResults?.length || result.type === 'none') {
     const chatResult = await model.chat(coreMessages, {
@@ -56,6 +57,7 @@ async function handleSearchResult(
       onResultChange,
       onStatusChange: params.onStatusChange,
     })
+    logTokenUsageFromResult(chatResult, model.modelId, params.sessionId)
     return { result: chatResult, coreMessages }
   }
 
@@ -86,6 +88,7 @@ async function handleSearchResult(
     onStatusChange: params.onStatusChange,
     providerOptions: params.providerOptions,
   })
+  logTokenUsageFromResult(chatResult, model.modelId, params.sessionId)
   return { result: chatResult, coreMessages }
 }
 
@@ -327,11 +330,16 @@ export async function streamText(
       tools,
     })
 
+    // Fire-and-forget token usage logging
+    logTokenUsageFromResult(result, model.modelId, sessionId)
+
     return { result, coreMessages }
   } catch (err) {
     console.error(err)
     // if a cancellation is performed, do not throw an exception, otherwise the content will be overwritten.
     if (controller.signal.aborted) {
+      // Still log usage for aborted requests that have partial results
+      logTokenUsageFromResult(result, model.modelId, sessionId)
       return { result, coreMessages }
     }
     throw err
