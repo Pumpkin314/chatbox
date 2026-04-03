@@ -73,7 +73,7 @@ Total human steps: 5 one-time setup actions.
 
 ### 3.1 App Registry
 
-Static JSON config file at `src/renderer/chatbridge/registry/apps.json`. Each entry:
+Static JSON config file at `src/renderer/chatbridge/registry/apps.json` is the **single source of truth for MVP**. The `app_registry` DB table is not used in MVP — it exists in the schema for post-MVP dynamic registration. The JSON file is loaded at app startup into memory. Each entry:
 
 ```ts
 interface AppRegistration {
@@ -174,6 +174,8 @@ interface BridgeMessage {
 
 **Origin validation:** Both sides validate `event.origin` on every postMessage.
 
+**Acknowledgment & retry:** Every `tool_invoke` message expects a `tool_result` response with matching UUID within 30s. If no response in 5s, host sends one retry with the same UUID. If still no response by 30s, host treats it as a timeout error. App-side bridge ignores duplicate UUIDs (idempotent). Rapid-fire messages (e.g., fast chess moves) are queued and processed sequentially by the app.
+
 ### 3.5 Side Panel UI
 
 New React component mounted alongside existing Chatbox chat area.
@@ -263,7 +265,7 @@ This ensures the LLM can reference app state ("your chess position was...") and 
 9. App uses token for Spotify API calls
 ```
 
-Token refresh: MVP checks `expires_at` before each `app_init`. If expired, re-triggers OAuth flow. Post-MVP automates refresh via `refresh_token`.
+Token refresh: MVP implements silent refresh using stored `refresh_token`. Before each `app_init`, check `expires_at`. If expired or within 5 minutes of expiry, call Spotify's `/api/token` with `grant_type=refresh_token` to get a new access token. Update `user_app_tokens` row. Only re-trigger full OAuth popup if refresh fails (e.g., token revoked).
 
 ## 4. Database Schema
 
@@ -456,7 +458,54 @@ Top risks for MVP:
 | Tool Format | OpenAI function calling JSON Schema | Direct compatibility, no translation layer |
 | Apps | Chess + Weather + Spotify | Covers all 3 auth patterns |
 
-## 11. Post-MVP
+## 11. AI Cost Analysis Plan
+
+**Dev spend tracking:** `token_usage_log` table captures every LLM call with model, prompt/completion tokens, and estimated cost. Aggregation query for the deliverable:
+
+```sql
+SELECT model,
+       COUNT(*) as total_calls,
+       SUM(prompt_tokens) as total_prompt,
+       SUM(completion_tokens) as total_completion,
+       SUM(estimated_cost) as total_cost
+FROM token_usage_log
+GROUP BY model;
+```
+
+**Production projections:** Based on observed averages from dev/testing:
+- Average tokens per message (with/without tool calls)
+- Average tool invocations per session
+- Average sessions per user per month
+- Scale linearly to 100 / 1K / 10K / 100K users
+- Include Supabase costs (DB rows, auth, realtime connections) at each tier
+
+Deliverable format: markdown table in the repo + section in the demo video.
+
+## 12. Developer Documentation (MVP)
+
+MVP API docs in `docs/developer-guide.md` covering:
+- **App registration format** — JSON schema for `AppRegistration` interface
+- **Tool schema format** — OpenAI-compatible function calling JSON Schema
+- **Bridge protocol** — message envelope types, lifecycle events, postMessage contract
+- **Auth patterns** — how each auth type (internal, external_public, external_authenticated) works
+- **Example app** — annotated walkthrough of the Weather app as the simplest reference implementation
+
+Post-MVP: full developer portal, published npm SDK, app template generator CLI.
+
+## 13. UX Loading Indicators
+
+The PRD warns against missing progress indicators. MVP implements:
+
+| State | Indicator |
+|---|---|
+| LLM streaming | Typing indicator + streamed text chunks |
+| Tool invocation in progress | Pulsing "Working..." badge in side panel header |
+| App iframe loading | Skeleton/spinner in side panel body |
+| OAuth popup flow | "Connecting to Spotify..." message in panel |
+| App processing tool call | Spinner overlay on app iframe |
+| Waiting for app completion | Subtle pulse on panel border |
+
+## 14. Post-MVP
 
 See `docs/chatbridge_post_mvp.md` for full continuation plan including:
 - Inline + expand rendering (Option C)
@@ -467,7 +516,7 @@ See `docs/chatbridge_post_mvp.md` for full continuation plan including:
 - Embedding-based tool relevance scoring
 - Developer SDK and documentation portal
 
-## 12. Related Documents
+## 15. Related Documents
 
 - `docs/chatbridge_brief.md` — Original PRD
 - `docs/chatbridge_risks.md` — Risk register with verification criteria
