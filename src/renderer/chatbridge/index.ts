@@ -19,3 +19,7 @@ export {
   getSupabaseSession,
   saveSupabaseMessage,
 } from './chatStoreSupabase.js'
+export {
+  persistMessagePair,
+  persistMessage,
+} from './messagePersistence.js'
