@@ -144,7 +144,7 @@ describe('Weather app registry (apps.json)', () => {
 
   it('weather app has correct entrypoint', () => {
     const weather = registry.find((app) => app.id === 'weather')
-    expect(weather?.entrypoint).toBe('weather/index.html')
+    expect(weather?.entrypoint).toBe('./apps/weather/index.html')
   })
 
   it('weather app has get_weather tool', () => {

@@ -7,22 +7,6 @@ import {
   recordAppComplete,
   recordStateUpdate,
 } from '../context-manager'
-import { registerApp } from '../registry'
-import type { AppRegistration } from '../registry'
-
-function makeApp(overrides: Partial<AppRegistration> = {}): AppRegistration {
-  return {
-    id: 'test-app',
-    name: 'Test App',
-    description: 'A test application',
-    type: 'iframe',
-    tools: [],
-    entrypoint: '/apps/test',
-    authConfig: { type: 'none' },
-    enabled: true,
-    ...overrides,
-  }
-}
 
 describe('context-manager', () => {
   describe('recordStateUpdate', () => {
@@ -39,18 +23,17 @@ describe('context-manager', () => {
   describe('recordAppComplete', () => {
     it('creates an entry in context history', () => {
       const store = createStore()
-      const app = makeApp({ id: 'quiz-app', name: 'Quiz App' })
-      registerApp(app)
 
-      store.set(activeAppAtom, 'quiz-app')
-      store.set(appStateAtom, { answers: [1, 2, 3] })
+      // Use 'chess' which exists in the static registry
+      store.set(activeAppAtom, 'chess')
+      store.set(appStateAtom, { fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR' })
 
       const entry = recordAppComplete(store)
 
       expect(entry).not.toBeNull()
-      expect(entry!.appId).toBe('quiz-app')
-      expect(entry!.appName).toBe('Quiz App')
-      expect(entry!.state).toEqual({ answers: [1, 2, 3] })
+      expect(entry!.appId).toBe('chess')
+      expect(entry!.appName).toBe('Chess')
+      expect(entry!.state).toEqual({ fen: 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR' })
       expect(entry!.type).toBe('app_complete')
       expect(typeof entry!.timestamp).toBe('number')
 
@@ -67,7 +50,7 @@ describe('context-manager', () => {
 
     it('returns null when no app state', () => {
       const store = createStore()
-      store.set(activeAppAtom, 'some-app')
+      store.set(activeAppAtom, 'chess')
       const entry = recordAppComplete(store)
       expect(entry).toBeNull()
     })
@@ -87,20 +70,18 @@ describe('context-manager', () => {
   describe('getLastAppState', () => {
     it('returns the most recent state for an app', () => {
       const store = createStore()
-      const app = makeApp({ id: 'flashcards', name: 'Flashcards' })
-      registerApp(app)
 
-      // Simulate two completions
-      store.set(activeAppAtom, 'flashcards')
-      store.set(appStateAtom, { card: 1, correct: 0 })
+      // Simulate two completions for chess
+      store.set(activeAppAtom, 'chess')
+      store.set(appStateAtom, { move: 1 })
       recordAppComplete(store)
 
-      store.set(activeAppAtom, 'flashcards')
-      store.set(appStateAtom, { card: 5, correct: 3 })
+      store.set(activeAppAtom, 'chess')
+      store.set(appStateAtom, { move: 5, advantage: 'white' })
       recordAppComplete(store)
 
-      const state = getLastAppState(store, 'flashcards')
-      expect(state).toEqual({ card: 5, correct: 3 })
+      const state = getLastAppState(store, 'chess')
+      expect(state).toEqual({ move: 5, advantage: 'white' })
     })
 
     it('returns null for unknown app', () => {
@@ -111,26 +92,24 @@ describe('context-manager', () => {
 
     it('tracks multiple apps independently', () => {
       const store = createStore()
-      registerApp(makeApp({ id: 'app-a', name: 'App A' }))
-      registerApp(makeApp({ id: 'app-b', name: 'App B' }))
 
-      // Complete app-a
-      store.set(activeAppAtom, 'app-a')
+      // Complete chess
+      store.set(activeAppAtom, 'chess')
       store.set(appStateAtom, { value: 'alpha' })
       recordAppComplete(store)
 
-      // Complete app-b
-      store.set(activeAppAtom, 'app-b')
+      // Complete weather
+      store.set(activeAppAtom, 'weather')
       store.set(appStateAtom, { value: 'beta' })
       recordAppComplete(store)
 
-      // Complete app-a again with different state
-      store.set(activeAppAtom, 'app-a')
+      // Complete chess again
+      store.set(activeAppAtom, 'chess')
       store.set(appStateAtom, { value: 'alpha-updated' })
       recordAppComplete(store)
 
-      expect(getLastAppState(store, 'app-a')).toEqual({ value: 'alpha-updated' })
-      expect(getLastAppState(store, 'app-b')).toEqual({ value: 'beta' })
+      expect(getLastAppState(store, 'chess')).toEqual({ value: 'alpha-updated' })
+      expect(getLastAppState(store, 'weather')).toEqual({ value: 'beta' })
     })
   })
 })
