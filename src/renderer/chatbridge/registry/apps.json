@@ -1,0 +1,55 @@
+[
+  {
+    "id": "chess",
+    "name": "Chess",
+    "description": "Play chess games with move validation and board visualization",
+    "type": "internal",
+    "tools": [
+      { "name": "start_game", "description": "Start a new chess game", "parameters": { "type": "object", "properties": { "color": { "type": "string", "enum": ["white", "black"], "description": "Which color the user plays as" } }, "required": [] } },
+      { "name": "make_move", "description": "Make a chess move on the board", "parameters": { "type": "object", "properties": { "from": { "type": "string", "description": "Square to move from (e.g. e2)" }, "to": { "type": "string", "description": "Square to move to (e.g. e4)" } }, "required": ["from", "to"] } },
+      { "name": "get_board", "description": "Get the current board state and legal moves", "parameters": { "type": "object", "properties": {} } },
+      { "name": "get_hint", "description": "Get the current board position for analysis", "parameters": { "type": "object", "properties": {} } },
+      { "name": "resign", "description": "Resign the current game", "parameters": { "type": "object", "properties": {} } }
+    ],
+    "entrypoint": "./apps/chess/index.html",
+    "authConfig": null,
+    "enabled": true
+  },
+  {
+    "id": "weather",
+    "name": "Weather Dashboard",
+    "description": "Check current weather and forecasts for any city",
+    "type": "external_public",
+    "tools": [
+      { "name": "get_weather", "description": "Get current weather conditions for a city", "parameters": { "type": "object", "properties": { "city": { "type": "string", "description": "City name (e.g. San Francisco)" } }, "required": ["city"] } },
+      { "name": "get_forecast", "description": "Get multi-day weather forecast for a city", "parameters": { "type": "object", "properties": { "city": { "type": "string", "description": "City name" }, "days": { "type": "number", "description": "Number of days (1-7)", "default": 3 } }, "required": ["city"] } }
+    ],
+    "entrypoint": "./apps/weather/index.html",
+    "authConfig": { "type": "api_key", "envVar": "VITE_WEATHER_API_KEY" },
+    "enabled": true
+  },
+  {
+    "id": "spotify",
+    "name": "Spotify Playlist Creator",
+    "description": "Search tracks and create playlists on Spotify",
+    "type": "external_authenticated",
+    "tools": [
+      { "name": "search_tracks", "description": "Search for tracks on Spotify", "parameters": { "type": "object", "properties": { "query": { "type": "string", "description": "Search query (artist, track name, genre)" } }, "required": ["query"] } },
+      { "name": "create_playlist", "description": "Create a new playlist in the user's Spotify account", "parameters": { "type": "object", "properties": { "name": { "type": "string", "description": "Playlist name" }, "description": { "type": "string", "description": "Playlist description" } }, "required": ["name"] } },
+      { "name": "add_to_playlist", "description": "Add tracks to a playlist", "parameters": { "type": "object", "properties": { "playlist_id": { "type": "string", "description": "Spotify playlist ID" }, "track_uris": { "type": "array", "items": { "type": "string" }, "description": "Array of Spotify track URIs" } }, "required": ["playlist_id", "track_uris"] } }
+    ],
+    "entrypoint": "./apps/spotify/index.html",
+    "authConfig": { "type": "oauth2_pkce", "provider": "spotify", "authUrl": "https://accounts.spotify.com/authorize", "tokenUrl": "https://accounts.spotify.com/api/token", "clientIdEnvVar": "VITE_SPOTIFY_CLIENT_ID", "scopes": ["playlist-modify-public", "playlist-modify-private"] },
+    "enabled": true
+  },
+  {
+    "id": "rubiks",
+    "name": "Rubik's Cube",
+    "description": "Interactive 3D Rubik's cube with solving assistance",
+    "type": "internal",
+    "tools": [],
+    "entrypoint": "./apps/rubiks/index.html",
+    "authConfig": null,
+    "enabled": false
+  }
+]
