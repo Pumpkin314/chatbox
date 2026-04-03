@@ -5,6 +5,7 @@
  * Never throws — all errors are caught and logged to console.
  */
 
+import type { StreamTextResult } from '../../../shared/types'
 import { getSupabaseClient } from './supabase'
 
 export interface LogTokenUsageParams {
@@ -65,4 +66,28 @@ export async function logTokenUsage(params: LogTokenUsageParams): Promise<void> 
   } catch (err) {
     console.error('[TokenLogger] Unexpected error:', err)
   }
+}
+
+/**
+ * Extract usage data from a StreamTextResult and log it.
+ * Intended to be called fire-and-forget after each streamText completion.
+ * Does nothing if usage data is missing or zero.
+ */
+export function logTokenUsageFromResult(
+  result: StreamTextResult,
+  modelId: string,
+  sessionId?: string
+): void {
+  const usage = result.usage
+  if (!usage || (usage.promptTokens === 0 && usage.completionTokens === 0)) {
+    return
+  }
+
+  // Fire-and-forget — do not await
+  void logTokenUsage({
+    conversationId: sessionId,
+    model: modelId,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+  })
 }
