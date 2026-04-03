@@ -88,6 +88,40 @@ This document captures ideas, improvements, and deferred features to be fleshed 
 
 ---
 
+## Streaming UX & Responsiveness
+
+### Minimize TTFT (Time to First Token)
+**MVP:** LLM responses rendered only after full completion.
+**Post-MVP:** Stream response tokens via SSE or WebSocket and render progressively as they arrive. Chunked text display with smooth cursor/caret animation. Perceived latency drops from seconds to milliseconds.
+**Stub:** LLM Service already returns the full response object — just needs to yield chunks from the streaming API instead of awaiting the complete response.
+
+### Tool Call Spinners & Loading States
+**MVP:** No visual feedback while LLM decides to call a tool or while tool executes.
+**Post-MVP:** Animated spinner in the chat bubble when the LLM is processing a tool call decision. Secondary loading indicator in the side panel while the tool executes. Smooth animated transition (slide/fade) when the side panel opens for a new app.
+**Stub:** Tool router already distinguishes between "LLM thinking" and "tool executing" phases — UI just needs to subscribe to those state changes.
+
+### Skeleton/Shimmer UI
+**MVP:** Side panel shows a blank container until the app iframe fully loads.
+**Post-MVP:** Skeleton screen placeholders in the side panel while app iframes load (gray block layout mimicking the app's structure). Shimmer effect for data-dependent content (e.g., weather cards loading actual forecast data). Skeletons replaced with real content via a crossfade transition.
+**Stub:** Side panel component already has a loading flag — skeleton markup can key off the same boolean.
+
+### Optimistic UI Updates
+**MVP:** UI waits for full tool call round-trip before showing any app-related feedback.
+**Post-MVP:** Immediately display contextual status in chat (e.g., "Opening Chess..." or "Fetching weather for New York...") as soon as the tool call is emitted, before the iframe loads or the API responds. Roll back gracefully on failure with an inline error card.
+**Stub:** Tool call names and arguments are available the moment the LLM emits them — no new data source needed, just earlier rendering.
+
+### Streaming Tool Results
+**MVP:** Tool results returned as a single block after execution completes.
+**Post-MVP:** Stream partial results back into chat as they become available. Multi-step tool calls show incremental progress (e.g., "Searching for songs..." then "Found 12 results, filtering..." then final list). Works naturally with the progressive text rendering from TTFT optimization.
+**Stub:** Bridge protocol `postMessage` channel already supports multiple messages per tool invocation — just needs a `partial_result` message type.
+
+### Connection State Indicators
+**MVP:** No indication of streaming or connection health in the UI.
+**Post-MVP:** Typing indicator (animated dots or pulsing bar) while the LLM stream is active. Visual badge or banner if the stream disconnects mid-response, with automatic reconnection and resume. Subtle connectivity icon in the chat header showing real-time connection state (connected / reconnecting / offline).
+**Stub:** LLM Service emits errors on stream failure — UI needs to surface them instead of silently swallowing.
+
+---
+
 ## Developer Documentation & SDK
 
 **MVP:** Minimal README explaining tool schema format and bridge protocol.

@@ -1,6 +1,6 @@
 import { createStore } from 'jotai'
 import { handleOpenApp, handleCloseApp, activeAppAtom } from './app-lifecycle'
-import { getAppById } from './registry'
+import { getAppById, getEnabledApps } from './registry'
 
 /**
  * Bridge interface — PR 2.2 will provide the real implementation.
@@ -44,7 +44,16 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     }
     const appId = args.app_id as string
     const result = handleOpenApp(storeRef, appId)
-    return JSON.stringify(result)
+    // Include available tools in result so the LLM knows what it can do next
+    const app = getAppById(appId)
+    const availableTools = app?.tools.map((t) => t.name) ?? []
+    return JSON.stringify({
+      ...result,
+      availableTools,
+      hint: availableTools.length > 0
+        ? `App "${app?.name}" is now open. Use the available tools (${availableTools.join(', ')}) to fulfill the user's request. Do NOT call open_app again.`
+        : `App "${app?.name}" is now open.`,
+    })
   }
 
   if (toolName === 'close_app') {
@@ -55,9 +64,20 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     return JSON.stringify({ success: true })
   }
 
-  // Check if this tool should be proxied on the host (API-calling tools)
-  const activeAppId = storeRef ? storeRef.get(activeAppAtom) : null
-  const activeApp = activeAppId ? getAppById(activeAppId) : null
+  // Find the parent app for this tool (may differ from active app if LLM skipped open_app)
+  let activeAppId = storeRef ? storeRef.get(activeAppAtom) : null
+  let activeApp = activeAppId ? getAppById(activeAppId) : null
+
+  // If no app is active, find which app owns this tool and auto-open it
+  if (!activeApp || !activeApp.tools.some((t) => t.name === toolName)) {
+    const ownerApp = getEnabledApps().find((app) => app.tools.some((t) => t.name === toolName))
+    if (ownerApp && storeRef) {
+      handleOpenApp(storeRef, ownerApp.id)
+      activeAppId = ownerApp.id
+      activeApp = ownerApp
+    }
+  }
+
   if (activeApp?.authConfig?.type === 'api_key') {
     const apiKey = (typeof import.meta !== 'undefined' && (import.meta as Record<string, Record<string, string>>).env?.[activeApp.authConfig.envVar ?? '']) || ''
     const result = await executeHostProxiedTool(toolName, args, apiKey)

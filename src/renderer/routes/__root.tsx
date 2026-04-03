@@ -3,6 +3,7 @@ import AuthGuard from '@/components/auth/AuthGuard'
 import { activeAppAtom } from '@/chatbridge/app-lifecycle'
 import SidePanel, { SIDE_PANEL_WIDTH } from '@/components/chatbridge/SidePanel'
 import { initAuth } from '@/chatbridge/auth'
+import { setStoreRef } from '@/chatbridge/tool-router'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import Toasts from '@/components/common/Toasts'
 import ExitFullscreenButton from '@/components/layout/ExitFullscreenButton'
@@ -149,6 +150,11 @@ function Root() {
   useEffect(() => {
     const unsubscribe = initAuth(jotaiStore)
     return () => unsubscribe?.()
+  }, [jotaiStore])
+
+  // Wire Jotai store into ChatBridge tool-router so open_app/close_app work
+  useEffect(() => {
+    setStoreRef(jotaiStore)
   }, [jotaiStore])
 
   useEffect(() => {

@@ -11,7 +11,7 @@
       { "name": "get_hint", "description": "Get the current board position for analysis", "parameters": { "type": "object", "properties": {} } },
       { "name": "resign", "description": "Resign the current game", "parameters": { "type": "object", "properties": {} } }
     ],
-    "entrypoint": "./apps/chess/index.html",
+    "entrypoint": "/apps/chess/index.html",
     "authConfig": null,
     "enabled": true
   },
@@ -24,7 +24,7 @@
       { "name": "get_weather", "description": "Get current weather conditions for a city", "parameters": { "type": "object", "properties": { "city": { "type": "string", "description": "City name (e.g. San Francisco)" } }, "required": ["city"] } },
       { "name": "get_forecast", "description": "Get multi-day weather forecast for a city", "parameters": { "type": "object", "properties": { "city": { "type": "string", "description": "City name" }, "days": { "type": "number", "description": "Number of days (1-7)", "default": 3 } }, "required": ["city"] } }
     ],
-    "entrypoint": "./apps/weather/index.html",
+    "entrypoint": "/apps/weather/index.html",
     "authConfig": { "type": "api_key", "envVar": "VITE_WEATHER_API_KEY" },
     "enabled": true
   },
@@ -38,7 +38,7 @@
       { "name": "create_playlist", "description": "Create a new playlist in the user's Spotify account", "parameters": { "type": "object", "properties": { "name": { "type": "string", "description": "Playlist name" }, "description": { "type": "string", "description": "Playlist description" } }, "required": ["name"] } },
       { "name": "add_to_playlist", "description": "Add tracks to a playlist", "parameters": { "type": "object", "properties": { "playlist_id": { "type": "string", "description": "Spotify playlist ID" }, "track_uris": { "type": "array", "items": { "type": "string" }, "description": "Array of Spotify track URIs" } }, "required": ["playlist_id", "track_uris"] } }
     ],
-    "entrypoint": "./apps/spotify/index.html",
+    "entrypoint": "/apps/spotify/index.html",
     "authConfig": { "type": "oauth2_pkce", "provider": "spotify", "authUrl": "https://accounts.spotify.com/authorize", "tokenUrl": "https://accounts.spotify.com/api/token", "clientIdEnvVar": "VITE_SPOTIFY_CLIENT_ID", "scopes": ["playlist-modify-public", "playlist-modify-private"] },
     "enabled": true
   },
@@ -48,7 +48,7 @@
     "description": "Interactive 3D Rubik's cube with solving assistance",
     "type": "internal",
     "tools": [],
-    "entrypoint": "./apps/rubiks/index.html",
+    "entrypoint": "/apps/rubiks/index.html",
     "authConfig": null,
     "enabled": false
   }

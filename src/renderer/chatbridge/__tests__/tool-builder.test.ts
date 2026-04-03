@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { createStore } from 'jotai'
 import { buildToolSet } from '../tool-builder'
 import { setStoreRef } from '../tool-router'
@@ -9,28 +9,26 @@ describe('buildToolSet', () => {
     setStoreRef(store)
   })
 
-  it('returns only open_app when no app is active', () => {
+  it('includes open_app and all app tools when no app is active', () => {
     const tools = buildToolSet(null)
     const names = Object.keys(tools)
-    expect(names).toEqual(['open_app'])
+    expect(names).toContain('open_app')
+    expect(names).toContain('start_game') // chess
+    expect(names).toContain('get_weather') // weather
+    expect(names).not.toContain('close_app') // no active app
   })
 
-  it('returns open_app + close_app + chess tools when chess is active', () => {
+  it('includes close_app when an app is active', () => {
     const tools = buildToolSet('chess')
     const names = Object.keys(tools)
     expect(names).toContain('open_app')
     expect(names).toContain('close_app')
     expect(names).toContain('start_game')
-    expect(names).toContain('make_move')
-    expect(names).toContain('get_board')
-    expect(names).toContain('get_hint')
-    expect(names).toContain('resign')
   })
 
   it('each tool has an execute function', () => {
     const tools = buildToolSet('chess')
-    for (const [name, t] of Object.entries(tools)) {
-      // Vercel AI SDK tool objects expose execute
+    for (const [, t] of Object.entries(tools)) {
       expect(typeof (t as any).execute).toBe('function')
     }
   })
@@ -40,12 +38,9 @@ describe('buildToolSet', () => {
     expect(Object.keys(tools)).not.toContain('close_app')
   })
 
-  it('includes weather tools when weather is active', () => {
-    const tools = buildToolSet('weather')
-    const names = Object.keys(tools)
-    expect(names).toContain('open_app')
-    expect(names).toContain('close_app')
-    expect(names).toContain('get_weather')
-    expect(names).toContain('get_forecast')
+  it('all enabled app tools present regardless of active app', () => {
+    const toolsNull = Object.keys(buildToolSet(null)).filter((n) => n !== 'close_app')
+    const toolsChess = Object.keys(buildToolSet('chess')).filter((n) => n !== 'close_app')
+    expect(toolsNull.sort()).toEqual(toolsChess.sort())
   })
 })

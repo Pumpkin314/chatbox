@@ -8,6 +8,7 @@ import { uniqueId } from 'lodash'
 import { createModelDependencies } from '@/adapters'
 import { buildToolSet } from '@/chatbridge/tool-builder'
 import { activeAppAtom } from '@/chatbridge/app-lifecycle'
+import { getChatBridgeSystemPrompt } from '@/chatbridge/system-prompt'
 import { getDefaultStore } from 'jotai'
 import * as settingActions from '@/stores/settingActions'
 import { settingsStore } from '@/stores/settingsStore'
@@ -181,6 +182,12 @@ export async function streamText(
     toolSetInstructions += websearchToolSet.description
   }
 
+  // Inject ChatBridge context (active app state, available apps, history)
+  const chatBridgePrompt = getChatBridgeSystemPrompt(getDefaultStore())
+  if (chatBridgePrompt) {
+    toolSetInstructions += chatBridgePrompt
+  }
+
   params.messages = injectModelSystemPrompt(
     model.modelId,
     params.messages,
@@ -339,6 +346,7 @@ export async function streamText(
       onStatusChange: params.onStatusChange,
       providerOptions: params.providerOptions,
       tools,
+      maxSteps: 5,
     })
 
     // Fire-and-forget token usage logging

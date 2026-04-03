@@ -1,54 +1,103 @@
-import { activeAppAtom, appStateAtom, type AppState } from '@/chatbridge/app-lifecycle'
+import { activeAppAtom } from '@/chatbridge/app-lifecycle'
+import { sendMessage, installMessageListener, clearPending, clearHandlers } from '@/chatbridge/bridge'
+import { getAppById } from '@/chatbridge/registry'
+import { setBridgeRef, type AppBridge } from '@/chatbridge/tool-router'
 import { ActionIcon, Box, Flex, Loader, Text } from '@mantine/core'
-import { IconX } from '@tabler/icons-react'
+import { IconAlertTriangle, IconX } from '@tabler/icons-react'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export const SIDE_PANEL_WIDTH = 380
 
+export type AppState = 'idle' | 'loading' | 'connected' | 'error'
 export type DisplayMode = 'panel' | 'inline' | 'expanded'
+
+const IFRAME_LOAD_TIMEOUT_MS = 15_000
 
 interface SidePanelProps {
   displayMode?: DisplayMode
 }
 
 export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
-  const activeApp = useAtomValue(activeAppAtom)
-  const appState = useAtomValue(appStateAtom)
+  const activeAppId = useAtomValue(activeAppAtom)
   const setActiveApp = useSetAtom(activeAppAtom)
-  const setAppState = useSetAtom(appStateAtom)
+  const activeApp = useMemo(() => (activeAppId ? getAppById(activeAppId) : null), [activeAppId])
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const prevAppIdRef = useRef<string | null>(null)
+  const [panelState, setPanelState] = useState<AppState>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleClose = useCallback(() => {
     setActiveApp(null)
-    setAppState('idle')
-  }, [setActiveApp, setAppState])
+    setPanelState('idle')
+    setErrorMessage(null)
+  }, [setActiveApp])
 
   const handleIframeLoad = useCallback(() => {
-    setAppState('connected')
-  }, [setAppState])
+    setPanelState('connected')
+    setErrorMessage(null)
+  }, [])
 
   const handleIframeError = useCallback(() => {
-    setAppState('error')
-  }, [setAppState])
+    setPanelState('error')
+    setErrorMessage('Failed to load app. Check that the app files are available.')
+  }, [])
 
-  // Reset state when app changes (only on actual app switch, not initial mount with pre-set state)
+  // Reset state when app changes
   useEffect(() => {
-    const currentId = activeApp?.id ?? null
-    if (currentId && prevAppIdRef.current !== null && prevAppIdRef.current !== currentId) {
-      setAppState('loading')
+    if (activeAppId && prevAppIdRef.current !== activeAppId) {
+      setPanelState('loading')
+      setErrorMessage(null)
     }
-    prevAppIdRef.current = currentId
-  }, [activeApp?.id, setAppState])
+    if (!activeAppId) {
+      setPanelState('idle')
+    }
+    prevAppIdRef.current = activeAppId
+  }, [activeAppId])
+
+  // Iframe load timeout
+  useEffect(() => {
+    if (panelState !== 'loading') return
+    const timer = setTimeout(() => {
+      if (panelState === 'loading') {
+        setPanelState('error')
+        setErrorMessage('App took too long to load.')
+      }
+    }, IFRAME_LOAD_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [panelState])
+
+  // Wire the postMessage bridge into tool-router so app-specific tool calls reach the iframe
+  useEffect(() => {
+    if (!activeApp) return
+
+    const uninstallListener = installMessageListener()
+
+    const bridge: AppBridge = {
+      sendToolCall(toolName, args) {
+        const iframe = iframeRef.current
+        if (!iframe) {
+          return Promise.reject(new Error('ChatBridge: iframe not available'))
+        }
+        return sendMessage(iframe, 'tool_call', { toolName, args }) as Promise<unknown>
+      },
+    }
+    setBridgeRef(bridge)
+
+    return () => {
+      clearPending()
+      clearHandlers()
+      uninstallListener()
+    }
+  }, [activeApp])
 
   if (!activeApp) return null
 
   // Only "panel" mode is implemented for now
   if (displayMode !== 'panel') return null
 
-  const statusColor = getStatusColor(appState)
-  const statusLabel = getStatusLabel(appState)
+  const statusColor = getStatusColor(panelState)
+  const statusLabel = getStatusLabel(panelState)
 
   return (
     <Box
@@ -101,13 +150,36 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
           overflow: 'hidden',
         }}
       >
-        {appState === 'loading' && (
+        {panelState === 'loading' && (
           <Flex
             align="center"
             justify="center"
+            direction="column"
+            gap="xs"
             style={{ position: 'absolute', inset: 0, zIndex: 1 }}
           >
             <Loader size="sm" />
+            <Text size="xs" c="chatbox-secondary">Loading {activeApp.name}...</Text>
+          </Flex>
+        )}
+        {panelState === 'error' && (
+          <Flex
+            align="center"
+            justify="center"
+            direction="column"
+            gap="sm"
+            style={{ position: 'absolute', inset: 0, zIndex: 1, padding: 16 }}
+          >
+            <IconAlertTriangle size={32} color="var(--chatbox-tint-error, #f44336)" />
+            <Text size="sm" c="chatbox-error" ta="center">{errorMessage || 'Something went wrong'}</Text>
+            <Text
+              size="xs"
+              c="chatbox-brand"
+              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+              onClick={() => { setPanelState('loading'); setErrorMessage(null) }}
+            >
+              Retry
+            </Text>
           </Flex>
         )}
         <iframe

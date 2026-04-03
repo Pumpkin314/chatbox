@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Playlist Manager</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #191414;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      overflow-x: hidden;
+    }
+    .header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 16px; border-bottom: 1px solid #282828;
+    }
+    .header svg { flex-shrink: 0; }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .tab-bar {
+      display: flex; border-bottom: 1px solid #282828;
+    }
+    .tab {
+      flex: 1; padding: 10px; text-align: center; cursor: pointer;
+      color: #888; font-size: 13px; font-weight: 500;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .tab:hover { color: #ccc; }
+    .tab.active { color: #1DB954; border-bottom-color: #1DB954; }
+    .view { display: none; padding: 12px; }
+    .view.active { display: block; }
+
+    /* Playlists */
+    .playlist-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .playlist-card:hover { background: #282828; }
+    .playlist-art {
+      width: 48px; height: 48px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .playlist-info { flex: 1; min-width: 0; }
+    .playlist-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .playlist-meta { color: #888; font-size: 12px; margin-top: 2px; }
+
+    /* Tracks */
+    .track-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 6px; transition: background 0.15s;
+    }
+    .track-row:hover { background: #282828; }
+    .track-art {
+      width: 36px; height: 36px; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .track-info { flex: 1; min-width: 0; }
+    .track-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-artist { color: #888; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-duration { color: #888; font-size: 12px; flex-shrink: 0; }
+    .track-action {
+      background: none; border: 1px solid #1DB954; color: #1DB954;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px;
+      cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+    }
+    .track-action:hover { background: #1DB954; color: #fff; }
+    .track-action.remove { border-color: #e74c3c; color: #e74c3c; }
+    .track-action.remove:hover { background: #e74c3c; color: #fff; }
+
+    /* Search */
+    .search-bar {
+      display: flex; gap: 8px; padding: 0 0 12px 0;
+    }
+    .search-bar input {
+      flex: 1; background: #282828; border: 1px solid #383838;
+      color: #e0e0e0; padding: 8px 12px; border-radius: 20px;
+      font-size: 13px; outline: none;
+    }
+    .search-bar input:focus { border-color: #1DB954; }
+    .search-bar button {
+      background: #1DB954; color: #fff; border: none;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px;
+      cursor: pointer; font-weight: 600;
+    }
+    .search-bar button:hover { background: #1ed760; }
+
+    /* Playlist detail */
+    .detail-header {
+      display: flex; align-items: center; gap: 12px;
+      padding-bottom: 12px; border-bottom: 1px solid #282828; margin-bottom: 8px;
+    }
+    .detail-art {
+      width: 64px; height: 64px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .detail-title { font-size: 18px; font-weight: 700; }
+    .detail-subtitle { color: #888; font-size: 13px; margin-top: 2px; }
+    .back-btn {
+      background: none; border: none; color: #1DB954;
+      font-size: 13px; cursor: pointer; padding: 4px 0; margin-bottom: 8px;
+    }
+    .back-btn:hover { text-decoration: underline; }
+
+    /* Create form */
+    .create-form { padding: 12px 0; }
+    .create-form label { display: block; color: #888; font-size: 12px; margin-bottom: 4px; }
+    .create-form input, .create-form textarea {
+      width: 100%; background: #282828; border: 1px solid #383838;
+      color: #e0e0e0; padding: 8px 12px; border-radius: 6px;
+      font-size: 13px; outline: none; margin-bottom: 12px; font-family: inherit;
+    }
+    .create-form input:focus, .create-form textarea:focus { border-color: #1DB954; }
+    .create-form textarea { resize: vertical; min-height: 60px; }
+    .create-btn {
+      background: #1DB954; color: #fff; border: none;
+      padding: 10px 20px; border-radius: 20px; font-size: 14px;
+      cursor: pointer; font-weight: 600; width: 100%;
+    }
+    .create-btn:hover { background: #1ed760; }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #282828; padding: 8px 16px; font-size: 12px;
+      color: #888; display: flex; align-items: center; gap: 6px;
+    }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #1DB954;
+    }
+    .status-dot.disconnected { background: #888; }
+
+    .empty-state { text-align: center; color: #666; padding: 40px 20px; font-size: 13px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      background: #1DB954; color: #fff; padding: 8px 16px;
+      border-radius: 20px; font-size: 13px; opacity: 0;
+      transition: opacity 0.3s; pointer-events: none; z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: fadeIn 0.2s ease-out; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1DB954">
+      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.5 17.3c-.2.3-.6.4-1 .2-2.7-1.6-6-2-10-1.1-.4.1-.7-.1-.8-.5-.1-.4.1-.7.5-.8 4.3-1 8-.6 11 1.2.4.2.5.7.3 1zm1.5-3.3c-.3.4-.8.5-1.2.3-3-1.9-7.7-2.4-11.3-1.3-.4.1-.9-.1-1-.6-.1-.4.1-.9.6-1 4.1-1.3 9.2-.7 12.6 1.5.3.2.5.7.3 1.1zm.1-3.4c-3.7-2.2-9.7-2.4-13.2-1.3-.5.2-1.1-.1-1.2-.6-.2-.5.1-1.1.6-1.2 4-1.2 10.6-1 14.8 1.5.5.3.6.9.4 1.4-.3.4-.9.5-1.4.2z"/>
+    </svg>
+    <h1>Spotify Playlist Manager</h1>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" data-view="playlists">My Playlists</div>
+    <div class="tab" data-view="search">Search</div>
+    <div class="tab" data-view="create">Create</div>
+  </div>
+
+  <!-- Playlists View -->
+  <div id="playlists-view" class="view active">
+    <div id="playlist-list"></div>
+    <div id="playlist-detail" style="display:none"></div>
+  </div>
+
+  <!-- Search View -->
+  <div id="search-view" class="view">
+    <div class="search-bar">
+      <input id="search-input" type="text" placeholder="Search tracks, artists...">
+      <button id="search-btn">Search</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <!-- Create View -->
+  <div id="create-view" class="view">
+    <div class="create-form">
+      <label>Playlist Name</label>
+      <input id="create-name" type="text" placeholder="My Awesome Playlist">
+      <label>Description (optional)</label>
+      <textarea id="create-desc" placeholder="A playlist for..."></textarea>
+      <button class="create-btn" id="create-btn">Create Playlist</button>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Connecting...</span>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // --- State ---
+    let authenticated = false;
+    let currentView = 'playlists';
+    let selectedPlaylist = null;
+    let pendingCalls = {};
+
+    const artColors = ['#1DB954','#E91E63','#FF9800','#2196F3','#9C27B0','#00BCD4','#FF5722','#4CAF50'];
+    function getColor(str) { let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return artColors[Math.abs(h)%artColors.length]; }
+
+    // --- Mock Data ---
+    const mockPlaylists = [
+      { id:'pl_1', name:'Chill Vibes', description:'Relaxing tunes for winding down', tracks:[ 'tr_1','tr_5','tr_8','tr_10','tr_12','tr_14','tr_16','tr_18','tr_20','tr_3','tr_6','tr_9','tr_11','tr_13','tr_15','tr_17','tr_19','tr_2','tr_4','tr_7','tr_21','tr_22','tr_23','tr_24' ]},
+      { id:'pl_2', name:'Workout Mix', description:'High energy beats', tracks:['tr_2','tr_4','tr_7','tr_9','tr_11','tr_13','tr_15','tr_17','tr_19','tr_21','tr_3','tr_6','tr_8','tr_10','tr_12','tr_14','tr_16','tr_18'] },
+      { id:'pl_3', name:'Study Focus', description:'Instrumental and ambient', tracks:['tr_1','tr_3','tr_5','tr_6','tr_8','tr_10','tr_12','tr_14','tr_16','tr_18','tr_20','tr_22','tr_24','tr_2','tr_4','tr_7','tr_9','tr_11','tr_13','tr_15','tr_17','tr_19','tr_21','tr_23','tr_25','tr_26','tr_27','tr_28','tr_29','tr_30','tr_31','tr_32'] },
+    ];
+
+    const mockTrackDB = {
+      tr_1: { id:'tr_1', name:'Blinding Lights', artist:'The Weeknd', album:'After Hours', duration:'3:20' },
+      tr_2: { id:'tr_2', name:'Shape of You', artist:'Ed Sheeran', album:'\u00F7', duration:'3:53' },
+      tr_3: { id:'tr_3', name:'Levitating', artist:'Dua Lipa', album:'Future Nostalgia', duration:'3:23' },
+      tr_4: { id:'tr_4', name:'Watermelon Sugar', artist:'Harry Styles', album:'Fine Line', duration:'2:54' },
+      tr_5: { id:'tr_5', name:'Stay', artist:'The Kid LAROI & Justin Bieber', album:'F*CK LOVE 3', duration:'2:21' },
+      tr_6: { id:'tr_6', name:'Heat Waves', artist:'Glass Animals', album:'Dreamland', duration:'3:58' },
+      tr_7: { id:'tr_7', name:'good 4 u', artist:'Olivia Rodrigo', album:'SOUR', duration:'2:58' },
+      tr_8: { id:'tr_8', name:'Peaches', artist:'Justin Bieber', album:'Justice', duration:'3:18' },
+      tr_9: { id:'tr_9', name:'Montero', artist:'Lil Nas X', album:'Montero', duration:'2:17' },
+      tr_10:{ id:'tr_10', name:'Kiss Me More', artist:'Doja Cat ft. SZA', album:'Planet Her', duration:'3:28' },
+      tr_11:{ id:'tr_11', name:'Save Your Tears', artist:'The Weeknd', album:'After Hours', duration:'3:35' },
+      tr_12:{ id:'tr_12', name:'Positions', artist:'Ariana Grande', album:'Positions', duration:'2:52' },
+      tr_13:{ id:'tr_13', name:'drivers license', artist:'Olivia Rodrigo', album:'SOUR', duration:'4:02' },
+      tr_14:{ id:'tr_14', name:'Dynamite', artist:'BTS', album:'Dynamite', duration:'3:19' },
+      tr_15:{ id:'tr_15', name:'Butter', artist:'BTS', album:'Butter', duration:'2:44' },
+      tr_16:{ id:'tr_16', name:'Deja Vu', artist:'Olivia Rodrigo', album:'SOUR', duration:'3:35' },
+      tr_17:{ id:'tr_17', name:'Beggin\'', artist:'Maneskin', album:'Chosen', duration:'3:31' },
+      tr_18:{ id:'tr_18', name:'Industry Baby', artist:'Lil Nas X & Jack Harlow', album:'Montero', duration:'3:32' },
+      tr_19:{ id:'tr_19', name:'Happier Than Ever', artist:'Billie Eilish', album:'Happier Than Ever', duration:'4:58' },
+      tr_20:{ id:'tr_20', name:'Easy On Me', artist:'Adele', album:'30', duration:'3:44' },
+      tr_21:{ id:'tr_21', name:'As It Was', artist:'Harry Styles', album:"Harry's House", duration:'2:47' },
+      tr_22:{ id:'tr_22', name:'About Damn Time', artist:'Lizzo', album:'Special', duration:'3:13' },
+      tr_23:{ id:'tr_23', name:'Anti-Hero', artist:'Taylor Swift', album:'Midnights', duration:'3:20' },
+      tr_24:{ id:'tr_24', name:'Flowers', artist:'Miley Cyrus', album:'Endless Summer Vacation', duration:'3:20' },
+      tr_25:{ id:'tr_25', name:'Cruel Summer', artist:'Taylor Swift', album:'Lover', duration:'2:58' },
+      tr_26:{ id:'tr_26', name:'Vampire', artist:'Olivia Rodrigo', album:'GUTS', duration:'3:39' },
+      tr_27:{ id:'tr_27', name:'Paint The Town Red', artist:'Doja Cat', album:'Scarlet', duration:'3:50' },
+      tr_28:{ id:'tr_28', name:'Snooze', artist:'SZA', album:'SOS', duration:'3:21' },
+      tr_29:{ id:'tr_29', name:'Kill Bill', artist:'SZA', album:'SOS', duration:'2:33' },
+      tr_30:{ id:'tr_30', name:'Daylight', artist:'David Kushner', album:'Daylight', duration:'3:32' },
+      tr_31:{ id:'tr_31', name:'Karma', artist:'Taylor Swift', album:'Midnights', duration:'3:24' },
+      tr_32:{ id:'tr_32', name:'Greedy', artist:'Tate McRae', album:'Greedy', duration:'2:31' },
+    };
+
+    // --- Bridge Protocol ---
+    function sendToHost(type, payload, id) {
+      window.parent.postMessage({ type, id: id || null, payload }, '*');
+    }
+
+    window.addEventListener('message', (event) => {
+      const { type, id, payload } = event.data || {};
+      if (type === 'app_init') {
+        authenticated = !!(payload && payload.token);
+        updateStatus(authenticated ? 'Connected' : 'Demo Mode (mock data)');
+        sendToHost('ready', {});
+        loadPlaylists();
+      } else if (type === 'tool_call') {
+        handleToolCall(id, payload);
+      } else if (type === 'ping') {
+        sendToHost('pong', {}, id);
+      }
+    });
+
+    function handleToolCall(id, payload) {
+      const { tool, params } = payload || {};
+      let result;
+      switch (tool) {
+        case 'search_tracks':
+          result = handleSearch(params.query);
+          break;
+        case 'create_playlist':
+          result = handleCreatePlaylist(params.name, params.description);
+          break;
+        case 'add_to_playlist':
+          result = handleAddToPlaylist(params.playlist_id, params.track_uris || params.track_ids);
+          break;
+        case 'get_playlists':
+          result = { playlists: mockPlaylists.map(p => ({ id:p.id, name:p.name, trackCount:p.tracks.length })) };
+          break;
+        default:
+          result = { error: 'Unknown tool: ' + tool };
+      }
+      sendToHost('tool_call_result', { result }, id);
+    }
+
+    function handleSearch(query) {
+      const q = (query || '').toLowerCase();
+      const results = Object.values(mockTrackDB).filter(t =>
+        t.name.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q) || t.album.toLowerCase().includes(q)
+      ).slice(0, 10);
+      renderSearchResults(results);
+      return { tracks: results };
+    }
+
+    function handleCreatePlaylist(name, description) {
+      const newPl = { id: 'pl_' + (mockPlaylists.length + 1), name, description: description || '', tracks: [] };
+      mockPlaylists.push(newPl);
+      renderPlaylists();
+      showToast('Playlist "' + name + '" created!');
+      return { playlist: { id: newPl.id, name: newPl.name } };
+    }
+
+    function handleAddToPlaylist(playlistId, trackUris) {
+      const pl = mockPlaylists.find(p => p.id === playlistId);
+      if (!pl) return { error: 'Playlist not found' };
+      const ids = (trackUris || []).map(u => u.replace('spotify:track:', ''));
+      ids.forEach(id => { if (!pl.tracks.includes(id)) pl.tracks.push(id); });
+      if (selectedPlaylist && selectedPlaylist.id === playlistId) renderPlaylistDetail(pl);
+      showToast(ids.length + ' track(s) added');
+      return { success: true, trackCount: pl.tracks.length };
+    }
+
+    // --- Rendering ---
+    function renderPlaylists() {
+      const container = document.getElementById('playlist-list');
+      container.innerHTML = mockPlaylists.map(pl => `
+        <div class="playlist-card animate-in" onclick="openPlaylist('${pl.id}')">
+          <div class="playlist-art" style="background:${getColor(pl.name)}">${pl.name[0]}</div>
+          <div class="playlist-info">
+            <div class="playlist-name">${esc(pl.name)}</div>
+            <div class="playlist-meta">${pl.tracks.length} tracks</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openPlaylist(id) {
+      const pl = mockPlaylists.find(p => p.id === id);
+      if (!pl) return;
+      selectedPlaylist = pl;
+      document.getElementById('playlist-list').style.display = 'none';
+      document.getElementById('playlist-detail').style.display = 'block';
+      renderPlaylistDetail(pl);
+    }
+
+    function closePlaylist() {
+      selectedPlaylist = null;
+      document.getElementById('playlist-list').style.display = 'block';
+      document.getElementById('playlist-detail').style.display = 'none';
+    }
+
+    function renderPlaylistDetail(pl) {
+      const tracks = pl.tracks.map(id => mockTrackDB[id]).filter(Boolean);
+      document.getElementById('playlist-detail').innerHTML = `
+        <button class="back-btn" onclick="closePlaylist()">&larr; Back to playlists</button>
+        <div class="detail-header">
+          <div class="detail-art" style="background:${getColor(pl.name)}">${pl.name[0]}</div>
+          <div>
+            <div class="detail-title">${esc(pl.name)}</div>
+            <div class="detail-subtitle">${tracks.length} tracks${pl.description ? ' \u00B7 ' + esc(pl.description) : ''}</div>
+          </div>
+        </div>
+        ${tracks.map(t => trackRow(t, 'remove', `removeFromPlaylist('${pl.id}','${t.id}')`)).join('')}
+        ${tracks.length === 0 ? '<div class="empty-state">No tracks yet. Search and add some!</div>' : ''}
+      `;
+    }
+
+    function renderSearchResults(tracks) {
+      const container = document.getElementById('search-results');
+      if (!tracks || tracks.length === 0) {
+        container.innerHTML = '<div class="empty-state">No results found</div>';
+        return;
+      }
+      container.innerHTML = tracks.map(t => trackRow(t, 'add', `addTrackPrompt('${t.id}')`)).join('');
+    }
+
+    function trackRow(t, actionType, onclick) {
+      const btnClass = actionType === 'remove' ? 'track-action remove' : 'track-action';
+      const btnLabel = actionType === 'remove' ? 'Remove' : '+ Add';
+      return `
+        <div class="track-row animate-in">
+          <div class="track-art" style="background:${getColor(t.album)}">${t.album[0]}</div>
+          <div class="track-info">
+            <div class="track-name">${esc(t.name)}</div>
+            <div class="track-artist">${esc(t.artist)}</div>
+          </div>
+          <div class="track-duration">${t.duration}</div>
+          <button class="${btnClass}" onclick="${onclick}">${btnLabel}</button>
+        </div>
+      `;
+    }
+
+    function addTrackPrompt(trackId) {
+      if (mockPlaylists.length === 0) { showToast('Create a playlist first'); return; }
+      // Add to first playlist for simplicity; in full version, show picker
+      const pl = mockPlaylists[0];
+      handleAddToPlaylist(pl.id, [trackId]);
+      sendToHost('state_update', { action: 'track_added', playlist: pl.id, track: trackId });
+    }
+
+    function removeFromPlaylist(plId, trackId) {
+      const pl = mockPlaylists.find(p => p.id === plId);
+      if (!pl) return;
+      pl.tracks = pl.tracks.filter(id => id !== trackId);
+      renderPlaylistDetail(pl);
+      showToast('Track removed');
+      sendToHost('state_update', { action: 'track_removed', playlist: plId, track: trackId });
+    }
+
+    // --- UI Helpers ---
+    function switchView(view) {
+      currentView = view;
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(view + '-view').classList.add('active');
+      if (view === 'playlists') { closePlaylist(); renderPlaylists(); }
+    }
+
+    function loadPlaylists() { renderPlaylists(); }
+
+    function updateStatus(text) {
+      document.getElementById('status-text').textContent = text;
+      document.getElementById('status-dot').className = 'status-dot' + (text.includes('Demo') ? ' disconnected' : '');
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2000);
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // --- Event Listeners ---
+    document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
+
+    document.getElementById('search-btn').addEventListener('click', () => {
+      const q = document.getElementById('search-input').value.trim();
+      if (q) handleSearch(q);
+    });
+    document.getElementById('search-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('search-btn').click();
+    });
+
+    document.getElementById('create-btn').addEventListener('click', () => {
+      const name = document.getElementById('create-name').value.trim();
+      if (!name) { showToast('Please enter a playlist name'); return; }
+      const desc = document.getElementById('create-desc').value.trim();
+      handleCreatePlaylist(name, desc);
+      document.getElementById('create-name').value = '';
+      document.getElementById('create-desc').value = '';
+      switchView('playlists');
+    });
+
+    // --- Init ---
+    updateStatus('Connecting...');
+    sendToHost('ready', {});
+    // If no app_init received within 1s, enter demo mode
+    setTimeout(() => {
+      if (!authenticated && document.getElementById('status-text').textContent === 'Connecting...') {
+        updateStatus('Demo Mode (mock data)');
+        loadPlaylists();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

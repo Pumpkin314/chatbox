@@ -6,8 +6,8 @@ import type { ToolSchema } from './registry'
 import { routeToolCall } from './tool-router'
 
 /**
- * Convert a JSON Schema property definition to a Zod schema.
- * Handles the types found in apps.json tool parameter definitions.
+ * Convert a JSON Schema property to a Zod schema.
+ * Handles types found in apps.json tool definitions.
  */
 function jsonPropertyToZod(prop: Record<string, unknown>): z.ZodType {
   const desc = typeof prop.description === 'string' ? prop.description : undefined
@@ -25,22 +25,19 @@ function jsonPropertyToZod(prop: Record<string, unknown>): z.ZodType {
     return schema
   }
 
-  // Default to string (handles enum too)
+  // String with enum constraint — encode allowed values in description
+  let schema = z.string()
   if (Array.isArray(prop.enum)) {
-    const values = prop.enum as [string, ...string[]]
-    let schema = z.enum(values)
-    if (desc) schema = schema.describe(desc)
+    const enumDesc = `${desc ? desc + '. ' : ''}Allowed values: ${(prop.enum as string[]).join(', ')}`
+    schema = schema.describe(enumDesc)
     return schema
   }
-
-  let schema = z.string()
   if (desc) schema = schema.describe(desc)
   return schema
 }
 
 /**
- * Convert a ToolSchema (from the registry) into a Zod object schema
- * for use with the Vercel AI SDK tool() helper.
+ * Convert a ToolSchema (from the registry) into a Zod object schema.
  */
 function toolSchemaToZodParams(schema: ToolSchema): z.ZodObject<Record<string, z.ZodType>> {
   const shape: Record<string, z.ZodType> = {}
@@ -65,7 +62,7 @@ function toolSchemaToZodParams(schema: ToolSchema): z.ZodObject<Record<string, z
 function buildCloseAppTool() {
   return tool({
     description: 'Close the currently active app in the side panel',
-    parameters: z.object({}),
+    inputSchema: z.object({}),
     execute: async () => {
       return await routeToolCall('close_app', {})
     },
@@ -74,8 +71,8 @@ function buildCloseAppTool() {
 
 /**
  * Builds a Vercel AI SDK ToolSet from ChatBridge tool schemas.
- * When no app is active, only open_app is included.
- * When an app is active, open_app + close_app + all app-specific tools are included.
+ * Uses inputSchema (not parameters) to match how existing tools work —
+ * the AI SDK's OpenAI provider reads tool.inputSchema for the JSON Schema.
  */
 export function buildToolSet(activeAppId: string | null): ToolSet {
   const schemas = getChatBridgeTools(activeAppId)
@@ -84,7 +81,7 @@ export function buildToolSet(activeAppId: string | null): ToolSet {
   for (const schema of schemas) {
     toolSet[schema.name] = tool({
       description: schema.description,
-      parameters: toolSchemaToZodParams(schema),
+      inputSchema: toolSchemaToZodParams(schema),
       execute: async (args) => {
         return await routeToolCall(schema.name, args as Record<string, unknown>)
       },
