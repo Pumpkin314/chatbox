@@ -6,6 +6,9 @@ import type { ModelMessage, ToolSet } from 'ai'
 import { t } from 'i18next'
 import { uniqueId } from 'lodash'
 import { createModelDependencies } from '@/adapters'
+import { buildToolSet } from '@/chatbridge/tool-builder'
+import { activeAppAtom } from '@/chatbridge/app-lifecycle'
+import { getDefaultStore } from 'jotai'
 import * as settingActions from '@/stores/settingActions'
 import { settingsStore } from '@/stores/settingsStore'
 import type {
@@ -317,6 +320,14 @@ export async function streamText(
         ...tools,
         ...fileToolSet.tools,
       }
+    }
+
+    // 5. merge ChatBridge tools (open_app, close_app, app-specific tools)
+    const activeAppId = getDefaultStore().get(activeAppAtom)
+    const chatBridgeTools = buildToolSet(activeAppId)
+    tools = {
+      ...tools,
+      ...chatBridgeTools,
     }
 
     console.debug('tools', tools)
