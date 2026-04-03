@@ -1,5 +1,7 @@
 import { type RemoteConfig, Theme } from '@shared/types'
 import AuthGuard from '@/components/auth/AuthGuard'
+import { activeAppAtom } from '@/chatbridge/app-lifecycle'
+import SidePanel, { SIDE_PANEL_WIDTH } from '@/components/chatbridge/SidePanel'
 import { initAuth } from '@/chatbridge/auth'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import Toasts from '@/components/common/Toasts'
@@ -205,6 +207,8 @@ function Root() {
 
   const showSidebar = useUIStore((s) => s.showSidebar)
   const sidebarWidth = useSidebarWidth()
+  const activeApp = useAtomValue(activeAppAtom)
+  const panelWidth = activeApp ? SIDE_PANEL_WIDTH : 0
 
   const _theme = useTheme()
   const { setColorScheme } = useMantineColorScheme()
@@ -276,6 +280,11 @@ function Root() {
                   ? { paddingRight: { sm: `${sidebarWidth}px` } }
                   : { paddingLeft: { sm: `${sidebarWidth}px` } }
                 : {}),
+              ...(panelWidth > 0
+                ? language === 'ar'
+                  ? { paddingLeft: { sm: `${panelWidth}px` } }
+                  : { paddingRight: { sm: `${panelWidth}px` } }
+                : {}),
             }}
           >
             <ErrorBoundary name="main">
@@ -283,6 +292,7 @@ function Root() {
             </ErrorBoundary>
           </Box>
         </Grid>
+        <SidePanel />
       </AuthGuard>
       {/* 对话设置 */}
       {/* <AppStoreRatingDialog /> */}
