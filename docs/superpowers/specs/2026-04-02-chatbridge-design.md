@@ -1,7 +1,7 @@
 # ChatBridge Design Spec
 
 **Date:** 2026-04-02
-**Status:** Draft
+**Status:** Approved
 **Target:** MVP (Tuesday 2026-04-03), Early Submit (Friday 2026-04-06), Final (Sunday 2026-04-08)
 **Platform:** Web build only (`CHATBOX_BUILD_PLATFORM=web`)
 **Base:** Fork of Chatbox (Electron/React/Vite AI chat client)
@@ -404,7 +404,7 @@ CREATE POLICY "Users see own tokens" ON user_app_tokens
 | Tool invocation timeout (30s) | Close panel, inject error context, chatbot continues |
 | Invalid tool parameters from LLM | App returns error via bridge, LLM retries with correction |
 | OAuth popup blocked | Show "please allow popups" message in panel |
-| OAuth token expired | Re-trigger OAuth flow on next app open |
+| OAuth token expired | Silent refresh via refresh_token; full OAuth popup only if refresh fails |
 | OpenAI API error | Retry 1x on 5xx, then surface error to user |
 | App crashes (no heartbeat) | 30s timeout catches it, same as tool timeout |
 | User closes panel mid-interaction | Serialize last-known state, store as app_context message |
