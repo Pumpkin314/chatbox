@@ -63,6 +63,8 @@ import * as settingActions from '@/stores/settingActions'
 import { initSettingsStore, settingsStore, useLanguage, useSettingsStore, useTheme } from '@/stores/settingsStore'
 import { useUIStore } from '@/stores/uiStore'
 import { CHATBOX_BUILD_CHANNEL, CHATBOX_BUILD_PLATFORM } from '@/variables'
+import { activeAppAtom } from '@/chatbridge/app-lifecycle'
+import SidePanel, { SIDE_PANEL_WIDTH } from '@/components/chatbridge/SidePanel'
 import { blobToDataUrl } from './image-creator/-components/constants'
 
 function BackgroundImageOverlay() {
@@ -196,6 +198,8 @@ function Root() {
 
   const showSidebar = useUIStore((s) => s.showSidebar)
   const sidebarWidth = useSidebarWidth()
+  const activeApp = useAtomValue(activeAppAtom)
+  const panelWidth = activeApp ? SIDE_PANEL_WIDTH : 0
 
   const _theme = useTheme()
   const { setColorScheme } = useMantineColorScheme()
@@ -266,6 +270,11 @@ function Root() {
                 ? { paddingRight: { sm: `${sidebarWidth}px` } }
                 : { paddingLeft: { sm: `${sidebarWidth}px` } }
               : {}),
+            ...(panelWidth > 0
+              ? language === 'ar'
+                ? { paddingLeft: { sm: `${panelWidth}px` } }
+                : { paddingRight: { sm: `${panelWidth}px` } }
+              : {}),
           }}
         >
           <ErrorBoundary name="main">
@@ -273,6 +282,7 @@ function Root() {
           </ErrorBoundary>
         </Box>
       </Grid>
+      <SidePanel />
       {/* 对话设置 */}
       {/* <AppStoreRatingDialog /> */}
       {/* 代码预览 */}
