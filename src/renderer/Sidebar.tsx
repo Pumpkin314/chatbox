@@ -6,6 +6,7 @@ import {
   IconHelpCircle,
   IconInfoCircle,
   IconLayoutSidebarLeftCollapse,
+  IconLogout,
   IconMessageChatbot,
   IconPhotoPlus,
   IconSettingsFilled,
@@ -13,7 +14,10 @@ import {
 import { useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAtomValue } from 'jotai'
 import { useTranslation } from 'react-i18next'
+import { signOut, userAtom } from './chatbridge/auth'
+import { supabase } from './chatbridge/supabase'
 import Divider from './components/common/Divider'
 import { ScalableIcon } from './components/common/ScalableIcon'
 import ThemeSwitchButton from './components/dev/ThemeSwitchButton'
@@ -43,6 +47,9 @@ export default function Sidebar() {
   const setSidebarWidth = useUIStore((s) => s.setSidebarWidth)
   const sidebarMode = useUIStore((s) => s.sidebarMode)
   const setSidebarMode = useUIStore((s) => s.setSidebarMode)
+
+  const user = useAtomValue(userAtom)
+  const isAuthEnabled = !!supabase
 
   const sessionListViewportRef = useRef<HTMLDivElement>(null)
 
@@ -287,6 +294,17 @@ export default function Sidebar() {
                 <ScalableIcon icon={IconSettingsFilled} size={20} />
               </ActionIcon>
 
+              {isAuthEnabled && user && (
+                <ActionIcon
+                  variant="transparent"
+                  color="chatbox-secondary"
+                  size={24}
+                  onClick={() => signOut()}
+                  data-testid="logout-button-mobile"
+                >
+                  <ScalableIcon icon={IconLogout} size={20} />
+                </ActionIcon>
+              )}
               {/* <Text
                 c="chatbox-tertiary"
                 size="sm"
@@ -365,6 +383,18 @@ export default function Sidebar() {
                 variant="light"
                 p="xs"
               />
+              {isAuthEnabled && user && (
+                <NavLink
+                  c="chatbox-tertiary"
+                  className="rounded"
+                  label={t('Log Out')}
+                  leftSection={<ScalableIcon icon={IconLogout} size={20} />}
+                  onClick={() => signOut()}
+                  variant="light"
+                  p="xs"
+                  data-testid="logout-button"
+                />
+              )}
             </>
           )}
         </Stack>
