@@ -2,22 +2,35 @@ import { describe, it, expect } from 'vitest'
 import { getChatBridgeTools } from '../tools'
 
 describe('getChatBridgeTools', () => {
-  it('always includes open_app and all enabled app tools', () => {
+  it('returns only open_app when no app is active', () => {
     const tools = getChatBridgeTools(null)
     const names = tools.map((t) => t.name)
-    expect(names).toContain('open_app')
-    // All enabled app tools should be present regardless of active app
-    expect(names).toContain('start_game') // chess
-    expect(names).toContain('get_weather') // weather
-    expect(names).toContain('search_tracks') // spotify
+    expect(names).toEqual(['open_app'])
   })
 
-  it('includes same tools regardless of active app', () => {
-    const toolsNoApp = getChatBridgeTools(null)
-    const toolsChess = getChatBridgeTools('chess')
-    const toolsWeather = getChatBridgeTools('weather')
-    expect(toolsNoApp.map((t) => t.name)).toEqual(toolsChess.map((t) => t.name))
-    expect(toolsNoApp.map((t) => t.name)).toEqual(toolsWeather.map((t) => t.name))
+  it('returns open_app + chess tools when chess is active', () => {
+    const tools = getChatBridgeTools('chess')
+    const names = tools.map((t) => t.name)
+    expect(names).toContain('open_app')
+    expect(names).toContain('start_game')
+    expect(names).toContain('make_move')
+    expect(names).toContain('get_board')
+    expect(names).toContain('get_hint')
+    expect(names).toContain('resign')
+    // Should NOT contain tools from other apps
+    expect(names).not.toContain('get_weather')
+    expect(names).not.toContain('search_tracks')
+  })
+
+  it('returns open_app + weather tools when weather is active', () => {
+    const tools = getChatBridgeTools('weather')
+    const names = tools.map((t) => t.name)
+    expect(names).toContain('open_app')
+    expect(names).toContain('get_weather')
+    expect(names).toContain('get_forecast')
+    // Should NOT contain tools from other apps
+    expect(names).not.toContain('start_game')
+    expect(names).not.toContain('search_tracks')
   })
 
   it('open_app description includes all enabled apps', () => {

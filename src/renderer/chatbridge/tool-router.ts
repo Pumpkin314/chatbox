@@ -64,18 +64,21 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     return JSON.stringify({ success: true })
   }
 
-  // Find the parent app for this tool (may differ from active app if LLM skipped open_app)
-  let activeAppId = storeRef ? storeRef.get(activeAppAtom) : null
-  let activeApp = activeAppId ? getAppById(activeAppId) : null
+  // Find the active app and verify the tool belongs to it
+  const activeAppId = storeRef ? storeRef.get(activeAppAtom) : null
+  const activeApp = activeAppId ? getAppById(activeAppId) : null
 
-  // If no app is active, find which app owns this tool and auto-open it
+  // If no app is active or tool doesn't belong to the active app, return an error
   if (!activeApp || !activeApp.tools.some((t) => t.name === toolName)) {
     const ownerApp = getEnabledApps().find((app) => app.tools.some((t) => t.name === toolName))
-    if (ownerApp && storeRef) {
-      handleOpenApp(storeRef, ownerApp.id)
-      activeAppId = ownerApp.id
-      activeApp = ownerApp
+    if (ownerApp) {
+      return JSON.stringify({
+        error: `Tool "${toolName}" requires the ${ownerApp.name} app to be open. Use open_app first.`,
+      })
     }
+    return JSON.stringify({
+      error: `Unknown tool "${toolName}". No app provides this tool.`,
+    })
   }
 
   if (activeApp?.authConfig?.type === 'api_key') {
