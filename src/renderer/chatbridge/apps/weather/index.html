@@ -612,8 +612,9 @@
   }
 
   function handleToolCall(id, payload) {
-    var toolName = payload.name;
-    var params = payload.parameters || {};
+    // Bridge sends {toolName, args}; also support legacy {name, parameters}
+    var toolName = payload.toolName || payload.name;
+    var params = payload.args || payload.parameters || {};
 
     if (toolName === 'get_weather') {
       showLoading();

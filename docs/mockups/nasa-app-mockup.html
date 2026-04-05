@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NASA Space Explorer — ChatBridge Mockup</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #111;
+  color: #e0e0e8;
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Simulated chat area */
+.chat-area {
+  flex: 1;
+  background: #1a1a2e;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.chat-area h3 {
+  color: #666;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.msg {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.msg.user {
+  background: #3a3a5c;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.msg.assistant {
+  background: #2a2a44;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  border-left: 2px solid #7c6ff7;
+}
+
+.msg .tool-badge {
+  display: inline-block;
+  background: rgba(124,111,247,0.2);
+  color: #a89cff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-family: monospace;
+}
+
+/* Divider */
+.divider {
+  width: 1px;
+  background: #333;
+}
+
+/* Side panel simulation */
+.side-panel {
+  width: 420px;
+  background: #0d1117;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #333;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #222;
+  min-height: 48px;
+}
+
+.panel-header h2 {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-header .close-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255,255,255,0.05);
+  color: #888;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #222;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  transition: all 0.2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.tab.active {
+  color: #58a6ff;
+  border-bottom-color: #58a6ff;
+}
+
+.tab:hover { color: #ccc; }
+
+/* Tab content */
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  display: none;
+}
+
+.tab-content.active { display: flex; flex-direction: column; }
+
+/* ==================== EXPLORE TAB ==================== */
+.explore-tab {
+  padding: 0;
+}
+
+.apod-image {
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: linear-gradient(135deg, #0a0a2e 0%, #1a0a3e 30%, #0a1a3e 60%, #0a0a1e 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apod-image .stars {
+  position: absolute;
+  inset: 0;
+}
+
+.apod-image .star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: white;
+  border-radius: 50%;
+  animation: twinkle 3s infinite alternate;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+.apod-image .nebula {
+  width: 200px;
+  height: 160px;
+  background: radial-gradient(ellipse at center, rgba(180,80,200,0.4) 0%, rgba(80,120,220,0.3) 30%, rgba(60,180,180,0.2) 50%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(15px);
+}
+
+.apod-image .label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.7);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #aaa;
+}
+
+.apod-info {
+  padding: 14px;
+}
+
+.apod-info h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #e8e8f0;
+}
+
+.apod-info .date {
+  font-size: 12px;
+  color: #58a6ff;
+  margin-bottom: 10px;
+}
+
+.apod-info .explanation {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #aaa;
+}
+
+.apod-nav {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-top: 1px solid #222;
+}
+
+.apod-nav button {
+  background: rgba(88,166,255,0.1);
+  color: #58a6ff;
+  border: 1px solid rgba(88,166,255,0.2);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.apod-nav button:hover { background: rgba(88,166,255,0.2); }
+
+/* ==================== DASHBOARD TAB ==================== */
+.dashboard-tab {
+  padding: 12px;
+  gap: 14px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #58a6ff;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.section-title .icon { font-size: 14px; }
+
+/* Mars photos grid */
+.mars-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.mars-photo {
+  aspect-ratio: 1;
+  background: #1a1a2e;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid #222;
+}
+
+.mars-photo:hover { border-color: #58a6ff; }
+
+.mars-photo .placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: linear-gradient(135deg, #2a1a0a, #3a2a1a, #2a1a0a);
+}
+
+.mars-photo .camera-label {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  font-size: 8px;
+  background: rgba(0,0,0,0.7);
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: #aaa;
+}
+
+.mars-date {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+/* Asteroid table */
+.asteroid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.asteroid-table th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #333;
+  color: #888;
+  font-weight: 500;
+}
+
+.asteroid-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #1a1a2e;
+  color: #ccc;
+}
+
+.asteroid-table .hazard-yes {
+  color: #f85149;
+  font-weight: 600;
+}
+
+.asteroid-table .hazard-no {
+  color: #3fb950;
+}
+
+.date-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.date-picker-row input {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.date-picker-row button {
+  background: rgba(88,166,255,0.15);
+  color: #58a6ff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Panel footer */
+.panel-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-top: 1px solid #222;
+  min-height: 28px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3fb950;
+}
+
+.panel-footer span {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Annotation labels */
+.mockup-label {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #58a6ff;
+  color: #000;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 100;
+}
+
+/* Tab switcher script styling */
+.view-switcher {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.view-switcher button {
+  background: #2a2a44;
+  color: #ccc;
+  border: 1px solid #444;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.view-switcher button.active {
+  background: #58a6ff;
+  color: #000;
+  border-color: #58a6ff;
+}
+</style>
+</head>
+<body>
+
+<div class="mockup-label">NASA Space Explorer — ChatBridge Mockup (click tabs to switch views)</div>
+
+<!-- Chat area -->
+<div class="chat-area">
+  <h3>Chat Conversation</h3>
+
+  <div class="msg user">Show me something cool about space</div>
+
+  <div class="msg assistant">
+    <div class="tool-badge">get_apod()</div>
+    I've opened the Space Explorer for you! Today's Astronomy Picture of the Day is the Carina Nebula — a massive cloud of gas and dust where new stars are being born. The bright pillars you see are columns of gas being sculpted by radiation from young, hot stars. Pretty incredible that this is 7,600 light-years away!
+  </div>
+
+  <div class="msg user">What am I looking at exactly?</div>
+
+  <div class="msg assistant">
+    That's NGC 3324, a region at the northwest corner of the Carina Nebula. The "cliff" edge is actually a wall of gas about 7 light-years high. The blue glow is from extremely hot young stars just above the frame. Want to see Mars instead?
+  </div>
+
+  <div class="msg user">Yeah show me Mars!</div>
+
+  <div class="msg assistant">
+    <div class="tool-badge">get_mars_photos(rover: "curiosity")</div>
+    Switching to Mars photos! These are from Curiosity rover in Gale Crater. Check the Dashboard tab — you can see shots from different cameras. The navigation cam gives wide views while the mast cam captures detailed close-ups of rocks and terrain.
+  </div>
+
+  <div class="msg user">Are any asteroids coming close to Earth this week?</div>
+
+  <div class="msg assistant">
+    <div class="tool-badge">get_asteroids("2026-04-05", "2026-04-12")</div>
+    I pulled this week's near-Earth objects — check the asteroid tracker on the Dashboard tab. There are 4 objects passing by this week. The largest is 2024 QR₃ at about 320 meters, but it's passing at a very safe distance of 4.2 million km. Nothing to worry about! Want me to explain how astronomers track these?
+  </div>
+</div>
+
+<!-- Side Panel -->
+<div class="side-panel">
+  <div class="panel-header">
+    <h2>🚀 Space Explorer</h2>
+    <button class="close-btn">×</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('explore')">🔭 Explore</button>
+    <button class="tab" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  </div>
+
+  <!-- Explore Tab -->
+  <div class="tab-content explore-tab active" id="explore-content">
+    <div class="apod-image">
+      <div class="stars">
+        <div class="star" style="top:10%;left:15%;animation-delay:0s"></div>
+        <div class="star" style="top:20%;left:45%;animation-delay:0.5s"></div>
+        <div class="star" style="top:15%;left:75%;animation-delay:1s"></div>
+        <div class="star" style="top:40%;left:25%;animation-delay:1.5s"></div>
+        <div class="star" style="top:35%;left:85%;animation-delay:0.3s"></div>
+        <div class="star" style="top:60%;left:55%;animation-delay:0.8s"></div>
+        <div class="star" style="top:70%;left:15%;animation-delay:1.2s"></div>
+        <div class="star" style="top:55%;left:90%;animation-delay:0.6s"></div>
+        <div class="star" style="top:80%;left:40%;animation-delay:1.8s"></div>
+        <div class="star" style="top:25%;left:60%;animation-delay:2s"></div>
+        <div class="star" style="top:45%;left:10%;animation-delay:0.2s"></div>
+        <div class="star" style="top:75%;left:70%;animation-delay:1.4s"></div>
+      </div>
+      <div class="nebula"></div>
+      <div class="label">NASA / ESA / CSA / STScI</div>
+    </div>
+    <div class="apod-info">
+      <h3>Cosmic Cliffs in the Carina Nebula</h3>
+      <div class="date">April 5, 2026 — Astronomy Picture of the Day</div>
+      <div class="explanation">
+        This landscape of "mountains" and "valleys" speckled with glittering stars is actually the edge of a nearby stellar nursery called NGC 3324 in the Carina Nebula. Captured in infrared light, this image reveals for the first time previously invisible areas of star birth. The "cliffs" are about 7 light-years high.
+      </div>
+    </div>
+    <div class="apod-nav">
+      <button>← April 4</button>
+      <button>April 6 →</button>
+    </div>
+  </div>
+
+  <!-- Dashboard Tab -->
+  <div class="tab-content dashboard-tab" id="dashboard-content">
+    <div>
+      <div class="section-title"><span class="icon">🔴</span> Mars Rover Photos — Curiosity</div>
+      <div class="mars-date">Sol 4120 · Earth date: 2026-04-03</div>
+      <div class="mars-grid">
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#3a2010,#5a3020,#3a2010)">🏔️</div><div class="camera-label">NAVCAM</div></div>
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#2a1a0a,#4a2a1a,#2a1508)">🪨</div><div class="camera-label">MASTCAM</div></div>
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#3a2515,#5a3525,#3a2010)">⛰️</div><div class="camera-label">NAVCAM</div></div>
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#2a1a08,#4a3018,#2a1a0a)">🌅</div><div class="camera-label">MASTCAM</div></div>
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#352010,#4a3020,#352515)">🏜️</div><div class="camera-label">CHEMCAM</div></div>
+        <div class="mars-photo"><div class="placeholder" style="background:linear-gradient(135deg,#2a1808,#3a2818,#2a1808)">🔬</div><div class="camera-label">MAHLI</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title"><span class="icon">☄️</span> Near-Earth Asteroids — This Week</div>
+      <div class="date-picker-row">
+        <input type="date" value="2026-04-05">
+        <span style="color:#666">to</span>
+        <input type="date" value="2026-04-12">
+        <button>Update</button>
+      </div>
+      <table class="asteroid-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Ø (m)</th>
+            <th>Distance (km)</th>
+            <th>⚠️</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>2024 QR₃</td>
+            <td>320</td>
+            <td>4,200,000</td>
+            <td class="hazard-no">Safe</td>
+          </tr>
+          <tr>
+            <td>2025 AB₁</td>
+            <td>85</td>
+            <td>1,800,000</td>
+            <td class="hazard-no">Safe</td>
+          </tr>
+          <tr>
+            <td>2023 XZ₇</td>
+            <td>210</td>
+            <td>6,100,000</td>
+            <td class="hazard-no">Safe</td>
+          </tr>
+          <tr>
+            <td>2026 DA₂</td>
+            <td>45</td>
+            <td>890,000</td>
+            <td class="hazard-yes">PHA</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="panel-footer">
+    <div class="status-dot"></div>
+    <span>Connected · NASA API</span>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+  if (tab === 'explore') {
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.getElementById('explore-content').classList.add('active');
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('dashboard-content').classList.add('active');
+  }
+}
+</script>
+
+</body>
+</html>

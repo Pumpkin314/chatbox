@@ -36,7 +36,14 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
   const handleIframeLoad = useCallback(() => {
     setPanelState('connected')
     setErrorMessage(null)
-  }, [])
+    // Send app_init handshake to the iframe so it knows the host is ready
+    const iframe = iframeRef.current
+    if (iframe) {
+      sendMessage(iframe, 'app_init', { appId: activeAppId }).catch(() => {
+        // Iframe may not have listener ready yet — that's OK, it can self-init
+      })
+    }
+  }, [activeAppId])
 
   const handleIframeError = useCallback(() => {
     setPanelState('error')

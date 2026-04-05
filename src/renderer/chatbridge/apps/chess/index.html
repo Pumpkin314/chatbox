@@ -1294,14 +1294,23 @@ window.addEventListener('message', function(event) {
 
   if (msg.type === 'app_init') {
     handleAppInit(msg);
-  } else if (msg.type === 'tool_invoke') {
-    handleToolInvoke(msg);
+  } else if (msg.type === 'tool_call') {
+    // Bridge sends {type:'tool_call', id, payload:{toolName, args}}
+    // Adapt to internal format {id, method, params}
+    const adapted = {
+      id: msg.id,
+      method: msg.payload && msg.payload.toolName,
+      params: msg.payload && msg.payload.args
+    };
+    handleToolInvoke(adapted);
   }
 });
 
 function handleAppInit(msg) {
-  if (msg.params && msg.params.existingState && msg.params.existingState.fen) {
-    game = Chess(msg.params.existingState.fen);
+  // Host sends {type:'app_init', id, payload:{...}}
+  const params = msg.payload || msg.params || {};
+  if (params.existingState && params.existingState.fen) {
+    game = Chess(params.existingState.fen);
   } else {
     game = Chess();
   }

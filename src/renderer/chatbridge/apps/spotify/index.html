@@ -270,7 +270,9 @@
     });
 
     function handleToolCall(id, payload) {
-      const { tool, params } = payload || {};
+      // Bridge sends {toolName, args}; also support legacy {tool, params}
+      const tool = (payload && (payload.toolName || payload.tool)) || '';
+      const params = (payload && (payload.args || payload.params)) || {};
       let result;
       switch (tool) {
         case 'search_tracks':
