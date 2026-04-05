@@ -15,6 +15,7 @@ describe('buildToolSet', () => {
     expect(names).toContain('open_app')
     expect(names).toContain('start_game') // chess
     expect(names).toContain('get_weather') // weather
+    expect(names).toContain('echo') // contract-test
     expect(names).not.toContain('close_app') // no active app
   })
 

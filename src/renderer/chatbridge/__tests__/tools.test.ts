@@ -10,6 +10,7 @@ describe('getChatBridgeTools', () => {
     expect(names).toContain('start_game') // chess
     expect(names).toContain('get_weather') // weather
     expect(names).toContain('search_tracks') // spotify
+    expect(names).toContain('echo') // contract-test
   })
 
   it('includes same tools regardless of active app', () => {
@@ -26,5 +27,6 @@ describe('getChatBridgeTools', () => {
     expect(openApp?.description).toContain('Chess')
     expect(openApp?.description).toContain('Weather')
     expect(openApp?.description).toContain('Spotify')
+    expect(openApp?.description).toContain('Contract Test')
   })
 })
