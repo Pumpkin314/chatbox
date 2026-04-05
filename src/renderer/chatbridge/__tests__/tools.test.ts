@@ -20,6 +20,16 @@ describe('getChatBridgeTools', () => {
     // Should NOT contain tools from other apps
     expect(names).not.toContain('get_weather')
     expect(names).not.toContain('search_tracks')
+    expect(names).not.toContain('echo')
+  })
+
+  it('returns open_app + contract-test tools when contract-test is active', () => {
+    const tools = getChatBridgeTools('contract-test')
+    const names = tools.map((t) => t.name)
+    expect(names).toContain('open_app')
+    expect(names).toContain('echo')
+    expect(names).not.toContain('start_game')
+    expect(names).not.toContain('get_weather')
   })
 
   it('returns open_app + weather tools when weather is active', () => {
@@ -39,5 +49,6 @@ describe('getChatBridgeTools', () => {
     expect(openApp?.description).toContain('Chess')
     expect(openApp?.description).toContain('Weather')
     expect(openApp?.description).toContain('Spotify')
+    expect(openApp?.description).toContain('Contract Test')
   })
 })

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contract Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #e0e0e0; font-family: monospace; padding: 16px; }
+    h2 { font-size: 14px; margin-bottom: 8px; color: #8888cc; }
+    #status { font-size: 18px; font-weight: bold; color: #ff9800; margin-bottom: 12px; }
+    #log { background: #0f0f23; border: 1px solid #333; border-radius: 4px; padding: 8px;
+           font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+           max-height: 300px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h2>ChatBridge Contract Test</h2>
+  <div id="status">Initializing...</div>
+  <div id="log"></div>
+
+  <script>
+  /* === bridge-sdk.js (inlined — sandbox prevents external script loads) === */
+  ;(function () {
+    'use strict'
+    if (window.ChatBridge) return
+
+    var toolCallHandlers = []
+    var messageHandlers = {}
+
+    function generateId() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID()
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = (Math.random() * 16) | 0
+        var v = c === 'x' ? r : (r & 0x3) | 0x8
+        return v.toString(16)
+      })
+    }
+
+    function sendToHost(type, payload, id) {
+      var message = {
+        type: type,
+        id: id || generateId(),
+        payload: payload || {},
+        timestamp: Date.now(),
+      }
+      window.parent.postMessage(message, '*')
+      return message.id
+    }
+
+    function handleMessage(event) {
+      var data = event.data
+      if (!data || typeof data !== 'object' || !data.type || !data.id) {
+        return
+      }
+
+      if (data.type === 'tool_call') {
+        var toolPayload = data.payload || {}
+        var toolName = toolPayload.name
+        var toolParams = toolPayload.parameters || {}
+        var handled = false
+        for (var i = 0; i < toolCallHandlers.length; i++) {
+          try {
+            var result = toolCallHandlers[i](toolName, toolParams)
+            if (result !== undefined) {
+              if (result && typeof result.then === 'function') {
+                result.then(
+                  function (resolvedResult) {
+                    sendToHost('tool_call_result', { result: resolvedResult }, data.id)
+                  },
+                  function (err) {
+                    sendToHost('error', { message: err && err.message ? err.message : 'Tool call failed' }, data.id)
+                  },
+                )
+              } else {
+                sendToHost('tool_call_result', { result: result }, data.id)
+              }
+              handled = true
+              break
+            }
+          } catch (err) {
+            sendToHost('error', { message: err && err.message ? err.message : 'Tool call handler error' }, data.id)
+            handled = true
+            break
+          }
+        }
+        if (!handled) {
+          sendToHost('error', { message: 'No handler for tool: ' + toolName }, data.id)
+        }
+        return
+      }
+
+      if (data.type === 'app_init') {
+        if (messageHandlers.init) {
+          try { messageHandlers.init(data.payload) } catch (_) {}
+        }
+        sendToHost('app_init_ack', {}, data.id)
+        return
+      }
+
+      if (messageHandlers[data.type]) {
+        try { messageHandlers[data.type](data.payload, data.id) } catch (_) {}
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+
+    window.ChatBridge = {
+      onToolCall: function (handler) {
+        if (typeof handler === 'function') { toolCallHandlers.push(handler) }
+      },
+      on: function (type, handler) {
+        if (typeof handler === 'function') { messageHandlers[type] = handler }
+      },
+      sendStateUpdate: function (state) { sendToHost('state_update', state) },
+      sendComplete: function (result) { sendToHost('app_complete', result) },
+      send: function (type, payload) { return sendToHost(type, payload) },
+    }
+  })()
+
+  /* === Contract test app logic === */
+  var statusEl = document.getElementById('status');
+  var logEl = document.getElementById('log');
+
+  function log(msg) {
+    logEl.textContent += msg + '\n';
+  }
+
+  ChatBridge.on('app_init', function(payload) {
+    statusEl.textContent = 'Ready';
+    statusEl.style.color = '#4caf50';
+    log('app_init received: ' + JSON.stringify(payload));
+    ChatBridge.sendStateUpdate({ status: 'ready' });
+    return { status: 'initialized' };
+  });
+
+  ChatBridge.onToolCall(function(toolName, params) {
+    log('Tool call: ' + toolName + ' params: ' + JSON.stringify(params));
+    statusEl.textContent = 'Processing...';
+    statusEl.style.color = '#ff9800';
+
+    if (toolName === 'echo') {
+      var result = { echo: params.message, timestamp: Date.now() };
+      statusEl.textContent = 'Complete';
+      statusEl.style.color = '#4caf50';
+      log('Returning: ' + JSON.stringify(result));
+      return result;
+    }
+
+    return { error: 'Unknown tool: ' + toolName };
+  });
+
+  log('Contract test app loaded, waiting for app_init...');
+  </script>
+</body>
+</html>

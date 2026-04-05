@@ -43,6 +43,28 @@
     "enabled": true
   },
   {
+    "id": "contract-test",
+    "name": "Contract Test",
+    "description": "Minimal app for verifying the ChatBridge plugin contract",
+    "type": "internal",
+    "tools": [
+      {
+        "name": "echo",
+        "description": "Echo back a message (contract verification tool)",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "string", "description": "Message to echo back" }
+          },
+          "required": ["message"]
+        }
+      }
+    ],
+    "entrypoint": "/apps/contract-test/index.html",
+    "authConfig": null,
+    "enabled": true
+  },
+  {
     "id": "rubiks",
     "name": "Rubik's Cube",
     "description": "Interactive 3D Rubik's cube with solving assistance",
