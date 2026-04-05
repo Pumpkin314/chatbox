@@ -40,7 +40,7 @@
     ],
     "entrypoint": "/apps/spotify/index.html",
     "authConfig": { "type": "oauth2_pkce", "provider": "spotify", "authUrl": "https://accounts.spotify.com/authorize", "tokenUrl": "https://accounts.spotify.com/api/token", "clientIdEnvVar": "VITE_SPOTIFY_CLIENT_ID", "scopes": ["playlist-modify-public", "playlist-modify-private"] },
-    "enabled": true
+    "enabled": false
   },
   {
     "id": "rubiks",

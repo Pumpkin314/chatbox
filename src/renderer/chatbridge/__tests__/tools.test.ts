@@ -9,7 +9,7 @@ describe('getChatBridgeTools', () => {
     // All enabled app tools should be present regardless of active app
     expect(names).toContain('start_game') // chess
     expect(names).toContain('get_weather') // weather
-    expect(names).toContain('search_tracks') // spotify
+    expect(names).not.toContain('search_tracks') // spotify is disabled
   })
 
   it('includes same tools regardless of active app', () => {
@@ -25,6 +25,6 @@ describe('getChatBridgeTools', () => {
     const openApp = tools.find((t) => t.name === 'open_app')
     expect(openApp?.description).toContain('Chess')
     expect(openApp?.description).toContain('Weather')
-    expect(openApp?.description).toContain('Spotify')
+    expect(openApp?.description).not.toContain('Spotify')
   })
 })

@@ -15,13 +15,13 @@ describe('Registry', () => {
   })
 
   describe('getEnabledApps', () => {
-    it('returns 3 enabled apps (excludes disabled rubiks)', () => {
+    it('returns 2 enabled apps (excludes disabled rubiks and spotify)', () => {
       const apps = getEnabledApps()
-      expect(apps).toHaveLength(3)
+      expect(apps).toHaveLength(2)
       const ids = apps.map((a) => a.id)
       expect(ids).toContain('chess')
       expect(ids).toContain('weather')
-      expect(ids).toContain('spotify')
+      expect(ids).not.toContain('spotify')
       expect(ids).not.toContain('rubiks')
     })
   })
@@ -48,21 +48,21 @@ describe('Registry', () => {
   })
 
   describe('generateOpenAppTool', () => {
-    it('has correct enum of enabled app IDs (no rubiks)', () => {
+    it('has correct enum of enabled app IDs (no rubiks or spotify)', () => {
       const tool = generateOpenAppTool()
       expect(tool.name).toBe('open_app')
       const appIdParam = tool.parameters.properties.app_id
       expect(appIdParam.enum).toContain('chess')
       expect(appIdParam.enum).toContain('weather')
-      expect(appIdParam.enum).toContain('spotify')
+      expect(appIdParam.enum).not.toContain('spotify')
       expect(appIdParam.enum).not.toContain('rubiks')
     })
 
-    it('description mentions all 3 enabled apps', () => {
+    it('description mentions all 2 enabled apps', () => {
       const tool = generateOpenAppTool()
       expect(tool.description).toContain('Chess')
       expect(tool.description).toContain('Weather Dashboard')
-      expect(tool.description).toContain('Spotify Playlist Creator')
+      expect(tool.description).not.toContain('Spotify Playlist Creator')
     })
   })
 })
