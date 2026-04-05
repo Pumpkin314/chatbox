@@ -9,21 +9,26 @@ describe('buildToolSet', () => {
     setStoreRef(store)
   })
 
-  it('includes open_app and all app tools when no app is active', () => {
+  it('includes only open_app when no app is active', () => {
     const tools = buildToolSet(null)
     const names = Object.keys(tools)
-    expect(names).toContain('open_app')
-    expect(names).toContain('start_game') // chess
-    expect(names).toContain('get_weather') // weather
-    expect(names).not.toContain('close_app') // no active app
+    expect(names).toEqual(['open_app'])
+    expect(names).not.toContain('close_app')
+    expect(names).not.toContain('start_game')
+    expect(names).not.toContain('get_weather')
   })
 
-  it('includes close_app when an app is active', () => {
+  it('includes open_app + app tools + close_app when an app is active', () => {
     const tools = buildToolSet('chess')
     const names = Object.keys(tools)
     expect(names).toContain('open_app')
     expect(names).toContain('close_app')
     expect(names).toContain('start_game')
+    expect(names).toContain('make_move')
+    expect(names).toContain('get_board')
+    // Should NOT contain tools from other apps
+    expect(names).not.toContain('get_weather')
+    expect(names).not.toContain('search_tracks')
   })
 
   it('each tool has an execute function', () => {
@@ -36,11 +41,5 @@ describe('buildToolSet', () => {
   it('does not include close_app when no app is active', () => {
     const tools = buildToolSet(null)
     expect(Object.keys(tools)).not.toContain('close_app')
-  })
-
-  it('all enabled app tools present regardless of active app', () => {
-    const toolsNull = Object.keys(buildToolSet(null)).filter((n) => n !== 'close_app')
-    const toolsChess = Object.keys(buildToolSet('chess')).filter((n) => n !== 'close_app')
-    expect(toolsNull.sort()).toEqual(toolsChess.sort())
   })
 })
