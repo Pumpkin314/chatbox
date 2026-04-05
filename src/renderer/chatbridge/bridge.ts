@@ -187,7 +187,7 @@ export function clearHandlers(): void {
 }
 
 /** Valid host-to-iframe message types */
-export const HOST_MESSAGE_TYPES = ['app_init', 'tool_call_result'] as const
+export const HOST_MESSAGE_TYPES = ['app_init', 'tool_call'] as const
 
 /** Valid iframe-to-host message types */
 export const IFRAME_MESSAGE_TYPES = ['state_update', 'app_complete', 'error'] as const

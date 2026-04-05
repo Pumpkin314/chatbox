@@ -7,6 +7,8 @@ import {
   clearHandlers,
   clearPending,
   handleIncomingMessage,
+  HOST_MESSAGE_TYPES,
+  IFRAME_MESSAGE_TYPES,
   onMessage,
   sendMessage,
 } from '../bridge'
@@ -41,6 +43,23 @@ afterEach(() => {
   clearPending()
   clearHandlers()
   vi.useRealTimers()
+})
+
+describe('message type constants', () => {
+  it('HOST_MESSAGE_TYPES contains tool_call (host sends tool calls to iframes)', () => {
+    expect(HOST_MESSAGE_TYPES).toContain('tool_call')
+    expect(HOST_MESSAGE_TYPES).not.toContain('tool_call_result')
+  })
+
+  it('HOST_MESSAGE_TYPES contains app_init', () => {
+    expect(HOST_MESSAGE_TYPES).toContain('app_init')
+  })
+
+  it('IFRAME_MESSAGE_TYPES contains expected types', () => {
+    expect(IFRAME_MESSAGE_TYPES).toContain('state_update')
+    expect(IFRAME_MESSAGE_TYPES).toContain('app_complete')
+    expect(IFRAME_MESSAGE_TYPES).toContain('error')
+  })
 })
 
 describe('bridge', () => {
