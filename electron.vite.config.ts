@@ -2,10 +2,61 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import fs from 'fs'
 import path, { resolve } from 'path'
 import { visualizer } from 'rollup-plugin-visualizer'
-import type { Plugin } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
 import packageJson from './release/app/package.json'
+/**
+ * Vite plugin to serve and copy chatbridge app HTML files.
+ * Source of truth: src/renderer/chatbridge/apps/
+ * - Dev: serves app HTML via configureServer middleware
+ * - Build: copies app HTML to output dir in writeBundle hook
+ */
+export function chatbridgeAppsPlugin(): Plugin {
+  const appsSource = resolve(__dirname, 'src/renderer/chatbridge/apps')
+
+  return {
+    name: 'chatbridge-apps',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url && req.url.startsWith('/apps/')) {
+          const filePath = resolve(appsSource, req.url.replace('/apps/', ''))
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            res.setHeader('Content-Type', 'text/html')
+            fs.createReadStream(filePath).pipe(res)
+            return
+          }
+        }
+        next()
+      })
+    },
+    writeBundle(options) {
+      const outDir = options.dir || resolve(__dirname, 'release/app/dist/renderer')
+      const destApps = resolve(outDir, 'apps')
+
+      // Recursively copy app HTML files (skip __tests__ directories)
+      function copyDir(src: string, dest: string) {
+        if (!fs.existsSync(dest)) {
+          fs.mkdirSync(dest, { recursive: true })
+        }
+        for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+          if (entry.name === '__tests__' || entry.name.startsWith('.')) continue
+          const srcPath = resolve(src, entry.name)
+          const destPath = resolve(dest, entry.name)
+          if (entry.isDirectory()) {
+            copyDir(srcPath, destPath)
+          } else {
+            fs.copyFileSync(srcPath, destPath)
+          }
+        }
+      }
+
+      copyDir(appsSource, destApps)
+    },
+  }
+}
+
 /**
  * Vite plugin to inject <base href="/"> for web builds
  * This ensures relative paths resolve correctly for SPA routes like /session/xxx
@@ -186,6 +237,7 @@ export default defineConfig(({ mode }) => {
           generatedRouteTree: './src/renderer/routeTree.gen.ts',
         }),
         react({}),
+        chatbridgeAppsPlugin(),
         dvhToVh(),
         isWeb ? injectBaseTag() : undefined,
         injectReleaseDate(),
