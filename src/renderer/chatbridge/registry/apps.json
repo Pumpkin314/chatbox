@@ -51,5 +51,51 @@
     "entrypoint": "/apps/rubiks/index.html",
     "authConfig": null,
     "enabled": false
+  },
+  {
+    "id": "nasa",
+    "name": "Space Explorer",
+    "description": "Explore astronomy pictures, Mars rover photos, and near-Earth asteroids",
+    "type": "external_public",
+    "tools": [
+      {
+        "name": "get_apod",
+        "description": "Get NASA's Astronomy Picture of the Day",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "date": { "type": "string", "description": "Date in YYYY-MM-DD format (optional, defaults to today)" }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "get_mars_photos",
+        "description": "Get photos from Mars rovers",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "rover": { "type": "string", "description": "Rover name: curiosity, opportunity, or spirit" },
+            "earth_date": { "type": "string", "description": "Earth date in YYYY-MM-DD format" }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "get_asteroids",
+        "description": "Get near-Earth asteroid data for a date range",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "start_date": { "type": "string", "description": "Start date in YYYY-MM-DD format" },
+            "end_date": { "type": "string", "description": "End date in YYYY-MM-DD format (optional, defaults to start_date + 7 days)" }
+          },
+          "required": ["start_date"]
+        }
+      }
+    ],
+    "entrypoint": "/apps/nasa/index.html",
+    "authConfig": { "type": "api_key", "envVar": "VITE_NASA_API_KEY" },
+    "enabled": true
   }
 ]
