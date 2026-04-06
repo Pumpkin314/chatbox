@@ -8,21 +8,22 @@ import {
 
 describe('Registry', () => {
   describe('loadRegistry', () => {
-    it('returns 7 apps', () => {
+    it('returns 8 apps', () => {
       const apps = loadRegistry()
-      expect(apps).toHaveLength(7)
+      expect(apps).toHaveLength(8)
     })
   })
 
   describe('getEnabledApps', () => {
-    it('returns 5 enabled apps (excludes disabled rubiks and spotify)', () => {
+    it('returns 6 enabled apps (excludes disabled rubiks and spotify)', () => {
       const apps = getEnabledApps()
-      expect(apps).toHaveLength(5)
+      expect(apps).toHaveLength(6)
       const ids = apps.map((a) => a.id)
       expect(ids).toContain('chess')
       expect(ids).toContain('weather')
       expect(ids).toContain('contract-test')
       expect(ids).toContain('nasa')
+      expect(ids).toContain('google-books')
       expect(ids).not.toContain('spotify')
       expect(ids).not.toContain('rubiks')
     })
@@ -58,16 +59,18 @@ describe('Registry', () => {
       expect(appIdParam.enum).toContain('weather')
       expect(appIdParam.enum).toContain('contract-test')
       expect(appIdParam.enum).toContain('nasa')
+      expect(appIdParam.enum).toContain('google-books')
       expect(appIdParam.enum).not.toContain('spotify')
       expect(appIdParam.enum).not.toContain('rubiks')
     })
 
-    it('description mentions all 4 enabled apps', () => {
+    it('description mentions all enabled apps', () => {
       const tool = generateOpenAppTool()
       expect(tool.description).toContain('Chess')
       expect(tool.description).toContain('Weather Dashboard')
       expect(tool.description).toContain('Contract Test')
       expect(tool.description).toContain('Space Explorer')
+      expect(tool.description).toContain('Google Books')
       expect(tool.description).not.toContain('Spotify Playlist Creator')
     })
   })
