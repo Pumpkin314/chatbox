@@ -15,11 +15,24 @@ import packageJson from './release/app/package.json'
  */
 export function chatbridgeAppsPlugin(): Plugin {
   const appsSource = resolve(__dirname, 'src/renderer/chatbridge/apps')
+  const chatbridgeSource = resolve(__dirname, 'src/renderer/chatbridge')
 
   return {
     name: 'chatbridge-apps',
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, res, next) => {
+        // Serve /auth/callback.html from chatbridge source directory
+        if (req.url && req.url.startsWith('/auth/')) {
+          const authFile = req.url.replace('/auth/', '')
+          // Map callback.html -> oauth-callback.html
+          const mappedFile = authFile === 'callback.html' ? 'oauth-callback.html' : authFile
+          const filePath = resolve(chatbridgeSource, mappedFile)
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            res.setHeader('Content-Type', 'text/html')
+            fs.createReadStream(filePath).pipe(res)
+            return
+          }
+        }
         if (req.url && req.url.startsWith('/apps/')) {
           const filePath = resolve(appsSource, req.url.replace('/apps/', ''))
           if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -53,6 +66,16 @@ export function chatbridgeAppsPlugin(): Plugin {
       }
 
       copyDir(appsSource, destApps)
+
+      // Copy oauth-callback.html to auth/callback.html in output
+      const authDir = resolve(outDir, 'auth')
+      if (!fs.existsSync(authDir)) {
+        fs.mkdirSync(authDir, { recursive: true })
+      }
+      const oauthSrc = resolve(chatbridgeSource, 'oauth-callback.html')
+      if (fs.existsSync(oauthSrc)) {
+        fs.copyFileSync(oauthSrc, resolve(authDir, 'callback.html'))
+      }
     },
   }
 }
