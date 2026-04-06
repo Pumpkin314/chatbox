@@ -119,5 +119,20 @@
     "entrypoint": "/apps/nasa/index.html",
     "authConfig": { "type": "api_key", "envVar": "VITE_NASA_API_KEY" },
     "enabled": true
+  },
+  {
+    "id": "flashforge",
+    "name": "FlashForge",
+    "description": "Create and study flashcard decks for any subject",
+    "type": "internal",
+    "tools": [
+      { "name": "create_deck", "description": "Create a new flashcard deck", "parameters": { "type": "object", "properties": { "topic": { "type": "string", "description": "The subject or topic for the flashcard deck" }, "card_count": { "type": "number", "description": "Number of cards to generate (3-20)" } }, "required": ["topic", "card_count"] } },
+      { "name": "study_card", "description": "Get the next card to study", "parameters": { "type": "object", "properties": { "deck_id": { "type": "string", "description": "The deck ID to study from" } }, "required": ["deck_id"] } },
+      { "name": "check_answer", "description": "Check if the user's answer is correct", "parameters": { "type": "object", "properties": { "deck_id": { "type": "string", "description": "The deck ID" }, "card_number": { "type": "number", "description": "The card number to check" }, "answer": { "type": "string", "description": "The user's answer" } }, "required": ["deck_id", "card_number", "answer"] } },
+      { "name": "get_deck_stats", "description": "Get study statistics for a deck", "parameters": { "type": "object", "properties": { "deck_id": { "type": "string", "description": "The deck ID" } }, "required": ["deck_id"] } }
+    ],
+    "entrypoint": "",
+    "authConfig": null,
+    "enabled": true
   }
 ]
