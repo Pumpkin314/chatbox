@@ -19,10 +19,10 @@ Object.defineProperty(window, 'matchMedia', {
 
 import { activeAppAtom } from '@/chatbridge/app-lifecycle'
 import { MantineProvider } from '@mantine/core'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Provider, createStore } from 'jotai'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import SidePanel from '../SidePanel'
 
 // Mock the registry to return a known app for 'test-app'
@@ -120,5 +120,74 @@ describe('SidePanel', () => {
     store.set(activeAppAtom, 'test-app')
     renderWithStore(store, { displayMode: 'inline' })
     expect(screen.queryByTestId('chatbridge-side-panel')).toBeNull()
+  })
+
+  describe('loading and error states', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('shows spinner/loading indicator when panelState is loading (iframe is loading)', () => {
+      const store = createStore()
+      store.set(activeAppAtom, 'test-app')
+      renderWithStore(store)
+      // Should show loading overlay with loader and loading text
+      expect(screen.getByText('Loading Test App...')).toBeTruthy()
+      expect(screen.getByText('Loading...')).toBeTruthy()
+    })
+
+    it('shows error card with retry button when panelState is error (iframe timed out)', () => {
+      const store = createStore()
+      store.set(activeAppAtom, 'test-app')
+      renderWithStore(store)
+      // Advance past the 15-second timeout
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+      // Should show error state
+      expect(screen.getByText('Error')).toBeTruthy()
+      expect(screen.getByText('App took too long to load.')).toBeTruthy()
+      expect(screen.getByText('Retry')).toBeTruthy()
+    })
+
+    it('shows error card with correct error message after timeout', () => {
+      const store = createStore()
+      store.set(activeAppAtom, 'test-app')
+      renderWithStore(store)
+      // Advance just under 15s — should still be loading
+      act(() => {
+        vi.advanceTimersByTime(14_999)
+      })
+      expect(screen.getByText('Loading...')).toBeTruthy()
+      // Advance past 15s timeout
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(screen.getByText('Error')).toBeTruthy()
+      expect(screen.getByText('App took too long to load.')).toBeTruthy()
+      expect(screen.getByText('Retry')).toBeTruthy()
+    })
+
+    it('clicking retry resets loading state and re-attempts iframe load', () => {
+      const store = createStore()
+      store.set(activeAppAtom, 'test-app')
+      renderWithStore(store)
+      // Trigger timeout to get to error state
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+      expect(screen.getByText('Retry')).toBeTruthy()
+      // Click retry
+      fireEvent.click(screen.getByText('Retry'))
+      // Should be back in loading state
+      expect(screen.getByText('Loading...')).toBeTruthy()
+      expect(screen.getByText('Loading Test App...')).toBeTruthy()
+      // The iframe should have a refreshed src (with cache-bust query param)
+      const iframe = screen.getByTestId('chatbridge-iframe') as HTMLIFrameElement
+      expect(iframe.src).toContain('_retry=1')
+    })
   })
 })

@@ -26,6 +26,7 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
   const prevAppIdRef = useRef<string | null>(null)
   const [panelState, setPanelState] = useState<AppState>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   const handleClose = useCallback(() => {
     setActiveApp(null)
@@ -97,6 +98,14 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
       uninstallListener()
     }
   }, [activeApp])
+
+  const iframeSrc = useMemo(() => {
+    if (!activeApp) return ''
+    const base = activeApp.entrypoint
+    if (retryCount === 0) return base
+    const sep = base.includes('?') ? '&' : '?'
+    return `${base}${sep}_retry=${retryCount}`
+  }, [activeApp, retryCount])
 
   if (!activeApp) return null
 
@@ -183,7 +192,7 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
               size="xs"
               c="chatbox-brand"
               style={{ cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={() => { setPanelState('loading'); setErrorMessage(null) }}
+              onClick={() => { setPanelState('loading'); setErrorMessage(null); setRetryCount((c) => c + 1) }}
             >
               Retry
             </Text>
@@ -192,7 +201,7 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
         <iframe
           ref={iframeRef}
           data-testid="chatbridge-iframe"
-          src={activeApp.entrypoint}
+          src={iframeSrc}
           sandbox="allow-scripts allow-forms"
           onLoad={handleIframeLoad}
           onError={handleIframeError}
