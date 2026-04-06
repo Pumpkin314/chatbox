@@ -1,4 +1,43 @@
 <!DOCTYPE html>
-<html><head><title>OAuth Callback</title></head>
-<body><p>OAuth callback placeholder. This page will handle the Google OAuth redirect.</p></body>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OAuth Callback</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #1e1e2e; color: #e0e0e8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  .message { text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="message" id="msg">Signing in...</div>
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('code');
+  var state = params.get('state');
+  var error = params.get('error');
+
+  if (!window.opener) {
+    document.getElementById('msg').textContent = 'This page should be opened automatically during sign-in. Please close this tab.';
+    return;
+  }
+
+  if (error) {
+    window.opener.postMessage({ type: 'oauth_callback', error: error }, '*');
+    document.getElementById('msg').textContent = 'Sign-in was cancelled. You can close this tab.';
+    setTimeout(function() { window.close(); }, 1500);
+    return;
+  }
+
+  if (code && state) {
+    window.opener.postMessage({ type: 'oauth_callback', code: code, state: state }, '*');
+    document.getElementById('msg').textContent = 'Signed in! Closing...';
+    setTimeout(function() { window.close(); }, 1000);
+    return;
+  }
+
+  document.getElementById('msg').textContent = 'Something went wrong. Please close this tab and try again.';
+})();
+</script>
+</body>
 </html>
