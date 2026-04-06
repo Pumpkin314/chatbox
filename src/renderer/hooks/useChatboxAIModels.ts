@@ -11,6 +11,7 @@ const useChatboxAIModels = () => {
 
   const { data, ...others } = useQuery({
     queryKey: ['chatbox-ai-models', language, licenseKey],
+    enabled: !!licenseKey,
     queryFn: async () => {
       const res = await getModelManifest({
         aiProvider: ModelProviderEnum.ChatboxAI,
