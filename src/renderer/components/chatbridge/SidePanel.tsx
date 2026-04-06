@@ -1,6 +1,16 @@
 import { activeAppAtom } from '@/chatbridge/app-lifecycle'
-import { sendMessage, installMessageListener, clearPending, clearHandlers } from '@/chatbridge/bridge'
+import { sendMessage, installMessageListener, clearPending, clearHandlers, onMessage } from '@/chatbridge/bridge'
+import {
+  generateCodeVerifier,
+  generateCodeChallenge,
+  storeState,
+  getState,
+  exchangeCodeForTokens,
+  storeToken,
+  buildAuthUrl,
+} from '@/chatbridge/oauth'
 import { getAppById } from '@/chatbridge/registry'
+import { getSupabaseClient } from '@/chatbridge/supabase'
 import { setBridgeRef, type AppBridge } from '@/chatbridge/tool-router'
 import { ActionIcon, Box, Flex, Loader, Text } from '@mantine/core'
 import { IconAlertTriangle, IconX } from '@tabler/icons-react'
@@ -92,10 +102,83 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
     }
     setBridgeRef(bridge)
 
+    // Handle auth_request from iframe (BridgeMessage format via bridge listener)
+    const handleAuthRequest = async (message: { type: string; payload?: { appId?: string } }) => {
+      if (message.type !== 'auth_request') return
+
+      const appId = message.payload?.appId
+      if (!appId) return
+
+      const app = getAppById(appId)
+      if (!app?.authConfig) return
+
+      const verifier = generateCodeVerifier()
+      const challenge = await generateCodeChallenge(verifier)
+      const state = crypto.randomUUID()
+      storeState(state, verifier, appId)
+
+      const redirectUri = `${window.location.origin}/auth/callback.html`
+      const authUrl = buildAuthUrl(app.authConfig, redirectUri, challenge, state)
+
+      const popup = window.open(authUrl, 'oauth-popup', 'width=500,height=600')
+      if (!popup) {
+        const iframe = iframeRef.current
+        if (iframe) {
+          sendMessage(iframe, 'auth_result', { success: false, error: 'popup_blocked' })
+        }
+      }
+    }
+
+    // Handle oauth_callback from popup (raw postMessage, NOT BridgeMessage)
+    const handleOAuthCallback = async (event: MessageEvent) => {
+      if (event.data?.type !== 'oauth_callback') return
+
+      const { code, state, error } = event.data
+      const iframe = iframeRef.current
+      if (!iframe) return
+
+      if (error) {
+        sendMessage(iframe, 'auth_result', { success: false, error })
+        return
+      }
+
+      const stateData = getState(state)
+      if (!stateData) {
+        sendMessage(iframe, 'auth_result', { success: false, error: 'invalid_state' })
+        return
+      }
+
+      const app = getAppById(stateData.appId)
+      if (!app?.authConfig) return
+
+      try {
+        const redirectUri = `${window.location.origin}/auth/callback.html`
+        const tokens = await exchangeCodeForTokens(code, stateData.verifier, app.authConfig, redirectUri)
+
+        const supabase = getSupabaseClient()
+        const { data: { user } } = await supabase!.auth.getUser()
+        if (user) {
+          await storeToken(user.id, stateData.appId, tokens)
+        }
+
+        sendMessage(iframe, 'auth_result', { success: true, provider: app.authConfig.provider })
+      } catch {
+        sendMessage(iframe, 'auth_result', { success: false, error: 'exchange_failed' })
+      }
+    }
+
+    // Register auth_request handler on bridge message system
+    const unsubAuthRequest = onMessage(handleAuthRequest)
+
+    // Register oauth_callback handler on raw window messages
+    window.addEventListener('message', handleOAuthCallback)
+
     return () => {
       clearPending()
       clearHandlers()
       uninstallListener()
+      unsubAuthRequest()
+      window.removeEventListener('message', handleOAuthCallback)
     }
   }, [activeApp])
 
