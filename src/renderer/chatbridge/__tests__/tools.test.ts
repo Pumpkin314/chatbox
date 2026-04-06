@@ -48,7 +48,7 @@ describe('getChatBridgeTools', () => {
     const openApp = tools.find((t) => t.name === 'open_app')
     expect(openApp?.description).toContain('Chess')
     expect(openApp?.description).toContain('Weather')
-    expect(openApp?.description).toContain('Spotify')
+    expect(openApp?.description).not.toContain('Spotify')
     expect(openApp?.description).toContain('Contract Test')
   })
 })

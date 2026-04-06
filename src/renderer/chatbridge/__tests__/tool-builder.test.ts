@@ -17,6 +17,7 @@ describe('buildToolSet', () => {
     expect(names).not.toContain('start_game')
     expect(names).not.toContain('get_weather')
     expect(names).not.toContain('echo')
+    expect(names).not.toContain('search_tracks')
   })
 
   it('includes open_app + app tools + close_app when an app is active', () => {
