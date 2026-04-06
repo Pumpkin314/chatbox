@@ -2,6 +2,8 @@
 
 Build apps that run inside ChatBridge without reading the source code.
 
+See also: [Plugin Contract](plugin-contract.md) | [Architecture Overview](architecture-overview.md)
+
 ## 1. Overview
 
 ChatBridge is an app integration system for the ChatBridge AI chat platform (K-12 education). Third-party apps run in sandboxed iframes inside a 380px-wide side panel and communicate with the AI assistant through a PostMessage bridge protocol.
@@ -46,11 +48,19 @@ Every app must be registered in `src/renderer/chatbridge/registry/apps.json`. Th
 | `authConfig` | `AuthConfig \| null` | yes | Authentication configuration, or `null` for internal apps |
 | `enabled` | `boolean` | yes | Set to `false` to hide the app from the LLM |
 
-### App Types
+### App Tiers
 
-- **`internal`** -- No external API calls. Runs entirely in the iframe. Auth is `null`.
-- **`external_public`** -- Calls a public API that requires an API key. Auth type is `api_key`.
+| Tier | `type` | `entrypoint` | Auth | Example |
+|------|--------|--------------|------|---------|
+| **Tier 1** JSON-only | `internal` | `""` (empty) | `null` | FlashForge |
+| **Tier 2** Internal iframe | `internal` | `/apps/{id}/index.html` | `null` | Chess |
+| **Tier 3** External public | `external_public` | `/apps/{id}/index.html` | `api_key` | Weather, NASA |
+| **Tier 4** External auth | `external_authenticated` | `/apps/{id}/index.html` | `oauth2_pkce` | Spotify |
+
+- **`internal`** -- No external API calls. Runs entirely in the iframe (Tier 2) or in-process (Tier 1). Auth is `null`.
+- **`external_public`** -- Calls a public API that requires an API key. The host proxies all API calls. Auth type is `api_key`.
 - **`external_authenticated`** -- Calls an API on behalf of the user (OAuth). Auth type is `oauth2_pkce`.
+- Set `entrypoint` to `""` for Tier 1 apps (no iframe rendered).
 
 ### Example Registration
 
@@ -550,3 +560,181 @@ Everything must be in a **single HTML file** -- inline CSS, inline JS, no extern
 - **PostMessage origin:** Because the sandbox strips origin, the SDK uses `'*'` as `targetOrigin`. All messages are validated by structure (`type` + `id` fields), not by origin.
 - **30-second timeout:** If your tool handler takes longer than 30 seconds the host will reject the call. For long operations, send `state_update` messages as progress indicators and return the result promptly.
 - **No Node.js / Electron APIs:** Apps run in a browser iframe. There is no access to `require`, `fs`, or any system APIs.
+
+## 9. Quick Start: Tier 1 App (JSON-only, no iframe)
+
+Tier 1 apps have no UI -- the LLM generates content and the tool returns JSON. FlashForge is the reference implementation.
+
+### Step 1: Register in apps.json
+
+```json
+{
+  "id": "quiz",
+  "name": "Quiz",
+  "description": "Generate and grade quiz questions",
+  "type": "internal",
+  "tools": [
+    {
+      "name": "create_quiz",
+      "description": "Create a quiz on a topic",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "topic": { "type": "string", "description": "Quiz topic" },
+          "count": { "type": "number", "description": "Number of questions (1-10)" }
+        },
+        "required": ["topic", "count"]
+      }
+    }
+  ],
+  "entrypoint": "",
+  "authConfig": null,
+  "enabled": true
+}
+```
+
+Note: `entrypoint` is `""` (empty string). No iframe will be rendered.
+
+### Step 2: Add tool handler in tool-router.ts
+
+Add a handler function in `tool-router.ts` (similar to `handleFlashForgeTool`):
+
+```typescript
+function handleQuizTool(toolName: string, args: Record<string, unknown>): Record<string, unknown> | null {
+  if (toolName === 'create_quiz') {
+    const topic = args.topic as string
+    const count = Math.max(1, Math.min(10, args.count as number))
+    // Generate questions (or return from a template bank)
+    return { quiz_id: 'q_123', topic, questions: [...] }
+  }
+  return null  // Not a quiz tool
+}
+```
+
+Then call it from `routeToolCall()` before the bridge fallback, matching the FlashForge pattern.
+
+### Step 3: Test
+
+The LLM will see your tools via `open_app`. When it calls `create_quiz`, the handler runs in-process and returns JSON directly.
+
+## 10. Quick Start: Tier 3 App (External API with host proxy)
+
+Tier 3 apps call external APIs that require an API key. The host proxies all API calls so the iframe never sees the key. Weather and NASA are reference implementations.
+
+### Step 1: Register in apps.json
+
+```json
+{
+  "id": "dictionary",
+  "name": "Dictionary",
+  "description": "Look up word definitions",
+  "type": "external_public",
+  "tools": [
+    {
+      "name": "define_word",
+      "description": "Get the definition of a word",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "word": { "type": "string", "description": "Word to define" }
+        },
+        "required": ["word"]
+      }
+    }
+  ],
+  "entrypoint": "/apps/dictionary/index.html",
+  "authConfig": { "type": "api_key", "envVar": "VITE_DICTIONARY_API_KEY" },
+  "enabled": true
+}
+```
+
+### Step 2: Add host proxy in tool-router.ts
+
+In the `executeHostProxiedTool()` function, add a handler for your tool:
+
+```typescript
+if (toolName === 'define_word') {
+  const word = args.word as string
+  if (!apiKey) return { word, definition: 'Mock definition', mock: true }
+  const res = await fetch(`https://api.example.com/define?word=${encodeURIComponent(word)}&key=${apiKey}`)
+  if (!res.ok) return { word, definition: 'Mock definition', mock: true }
+  const data = await res.json()
+  return { word, definition: data.definition }
+}
+```
+
+### Step 3: Create the iframe HTML
+
+Create `src/renderer/chatbridge/apps/dictionary/index.html` with the bridge SDK inlined. Handle `__proxyResult`:
+
+```javascript
+ChatBridge.onToolCall(function(toolName, params) {
+  if (params.__proxyResult) {
+    renderDefinition(params.__proxyResult);
+    return params.__proxyResult;
+  }
+});
+```
+
+### Step 4: Add the API key
+
+Add the env var to `.env`:
+
+```
+VITE_DICTIONARY_API_KEY=your_key_here
+```
+
+## 11. Testing Your App
+
+### Unit tests
+
+Create a test file in `src/renderer/chatbridge/__tests__/` or `src/renderer/chatbridge/apps/{id}/__tests__/`:
+
+```typescript
+import { describe, it, expect } from 'vitest'
+
+describe('dictionary tools', () => {
+  it('returns a definition for a valid word', async () => {
+    // Test your tool handler directly
+    const result = handleDictionaryTool('define_word', { word: 'hello' })
+    expect(result).toHaveProperty('definition')
+  })
+})
+```
+
+Run with:
+
+```bash
+pnpm test -- --testPathPattern=dictionary
+```
+
+### E2E tests (Playwright)
+
+Create a spec file in `tests/e2e/app-flows/`:
+
+```typescript
+import { test, expect } from '@playwright/test'
+
+test.describe('Dictionary app', () => {
+  test('defines a word via tool call', async ({ page }) => {
+    // Use the mock LLM helper to script tool calls
+    // See tests/e2e/helpers/mock-llm.ts for the pattern
+  })
+})
+```
+
+Run with:
+
+```bash
+npx playwright test --config=tests/e2e/playwright.config.ts tests/e2e/app-flows/dictionary.spec.ts
+```
+
+### What to test
+
+- Tool handler returns correct shape for valid inputs
+- Tool handler returns error for invalid inputs
+- Mock data fallback works when API key is missing (Tier 3)
+- `__proxyResult` is rendered correctly in the iframe (Tier 3)
+- Full lifecycle: `open_app` -> tool calls -> `close_app`
+
+For the full registry schema reference, see [Plugin Contract](plugin-contract.md).

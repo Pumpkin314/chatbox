@@ -4,7 +4,9 @@
 
 ChatBridge is a plugin system that extends the chat interface with interactive side-panel apps. Apps run in sandboxed iframes and communicate with the host via a structured postMessage bridge. The LLM discovers apps through a tool-based interface and interacts with them by invoking app-specific tools.
 
-This document is the stable contract for building new plugins. It is verified against the Sprint 1 codebase and serves as the target for Plan 2 (Google Books OAuth) and all future plugin development.
+This document is the stable contract for building new plugins. It is verified against the Sprint 4 codebase and covers all four app tiers.
+
+See also: [Architecture Overview](architecture-overview.md) | [Developer Guide](developer-guide.md)
 
 ## App Registry Schema
 
@@ -23,13 +25,23 @@ interface AppRegistration {
 }
 ```
 
-### Type meanings
+### Entrypoint
 
-| Type | Auth | Network | Example |
-|------|------|---------|---------|
-| `internal` | None | None needed | Chess |
-| `external_public` | API key (host-proxied) | Host makes API calls | Weather |
-| `external_authenticated` | OAuth2 PKCE | Iframe makes API calls after auth | Spotify (disabled) |
+The `entrypoint` field determines whether an iframe is rendered:
+
+- **Non-empty** (e.g. `"/apps/chess/index.html"`): The app gets an iframe in the side panel. This is the default for Tier 2 and Tier 3 apps.
+- **Empty string** (`""`): No iframe is rendered. The app is **Tier 1 (JSON-only)** -- tool calls are handled entirely in the host process. Example: FlashForge.
+
+### App Tiers
+
+| Tier | Type | Iframe | Auth | Example |
+|------|------|--------|------|---------|
+| **Tier 1** — JSON-only | `internal` | No (`entrypoint: ""`) | None | FlashForge |
+| **Tier 2** — Internal iframe | `internal` | Yes | None | Chess, contract-test |
+| **Tier 3** — External public | `external_public` | Yes | API key (host-proxied) | Weather, NASA Space Explorer |
+| **Tier 4** — External authenticated | `external_authenticated` | Yes | OAuth2 PKCE | Spotify (disabled) |
+
+**Tier 1 pattern:** FlashForge is the reference implementation. Its tool handlers live directly in `tool-router.ts` as pure functions (no bridge, no iframe). The LLM generates flashcard content and the tool returns JSON results. This is the simplest app pattern -- ideal for apps that need no UI.
 
 ## Tool Schema
 
@@ -130,12 +142,13 @@ Responses are matched to requests by the `id` field, not by message type. The ho
 
 ## Tool Gating
 
-Tool visibility is managed by `buildToolSet()` in `src/renderer/chatbridge/tool-builder.ts`:
+Tool visibility is managed by `getChatBridgeTools()` in `tools.ts` and `buildToolSet()` in `tool-builder.ts`:
 
-- `open_app` is always available (with enum of enabled app IDs)
-- All enabled apps' tools are always visible to the LLM (so multi-step tool calls work within a single `streamText` call)
-- `close_app` is only available when an app is active
-- If the LLM calls an app tool without first calling `open_app`, `routeToolCall()` auto-opens the owning app
+- **No app active:** Only `open_app` is available. The LLM must open an app before it can use app-specific tools.
+- **App active:** `open_app` + the active app's tools + `close_app`. Only the active app's tools are exposed, not all apps' tools.
+- `close_app` is a system tool (not in `apps.json`) -- it is injected by `buildToolSet()` only when an app is active.
+- If the LLM calls an app tool without first calling `open_app`, `routeToolCall()` returns an error message telling it to call `open_app` first.
+- For Tier 1 apps (like FlashForge), tool calls are handled in-process by `routeToolCall()` without going through the bridge.
 
 ## bridge-sdk.js API Reference
 
@@ -206,6 +219,21 @@ Flow:
 6. Result is also forwarded to the iframe as `args.__proxyResult` in a `tool_call` message (so the iframe can update its UI)
 
 If the API key is missing or the request fails, mock data is returned as a fallback.
+
+### `__proxyResult` pattern
+
+When a host-proxied tool call completes, the result is forwarded to the iframe as `args.__proxyResult` in a `tool_call` message. Apps with `api_key` auth should check for this field in their `onToolCall` handler to display pre-fetched data without making their own API call:
+
+```javascript
+ChatBridge.onToolCall(function(toolName, params) {
+  if (params.__proxyResult) {
+    // Host already fetched the data -- just render it
+    renderWeatherData(params.__proxyResult);
+    return params.__proxyResult;
+  }
+  // Fallback: should not normally reach here for proxied tools
+});
+```
 
 ## Timeouts
 
