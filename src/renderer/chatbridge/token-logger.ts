@@ -59,6 +59,12 @@ export async function logTokenUsage(params: LogTokenUsageParams): Promise<void> 
       return
     }
 
+    // Skip insert when no authenticated user — RLS policy requires a valid user_id
+    if (!userId) {
+      console.log('[TokenLogger] No authenticated user, skipping insert:', record)
+      return
+    }
+
     const { error } = await client.from('token_usage_log').insert([record])
     if (error) {
       console.error('[TokenLogger] Failed to insert token usage:', error)
