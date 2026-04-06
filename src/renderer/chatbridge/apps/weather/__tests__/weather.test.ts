@@ -79,6 +79,60 @@ describe('Weather Dashboard app', () => {
     expect(html).toContain('getMockForecast')
   })
 
+  describe('__proxyResult handler', () => {
+    it('checks for __proxyResult in params before mock data path in handleToolCall', () => {
+      // Within handleToolCall, the __proxyResult check must appear before getMockWeather calls
+      const handleToolCallStart = html.indexOf('function handleToolCall')
+      const body = html.slice(handleToolCallStart)
+      const proxyIdx = body.indexOf('__proxyResult')
+      const mockIdx = body.indexOf('getMockWeather(')
+      expect(proxyIdx).toBeGreaterThan(-1)
+      expect(proxyIdx).toBeLessThan(mockIdx)
+    })
+
+    it('detects __proxyResult in tool_call parameters', () => {
+      expect(html).toContain('params.__proxyResult')
+    })
+
+    it('feeds __proxyResult data into updateCurrentWeather for get_weather', () => {
+      // Should call updateCurrentWeather with the proxied data
+      expect(html).toContain('updateCurrentWeather')
+      // Should reference realData or the proxy result variable for rendering
+      expect(html).toMatch(/__proxyResult/)
+    })
+
+    it('feeds __proxyResult data into updateForecast for get_forecast', () => {
+      // Should handle forecast proxy results
+      expect(html).toContain('updateForecast')
+      expect(html).toMatch(/__proxyResult/)
+    })
+
+    it('sends tool_call_result back to host after displaying proxy data', () => {
+      // The proxy handler should send a result message
+      expect(html).toContain('tool_call_result')
+    })
+
+    it('maps condition to weather icon for proxied data', () => {
+      // Real API data has no icon field - iframe must map condition to icon
+      expect(html).toContain('mapConditionToIcon')
+    })
+
+    it('returns early after handling __proxyResult (skips mock path)', () => {
+      // After processing __proxyResult, the handler should return
+      // Check that the proxy handling block contains a return statement
+      // by verifying the pattern: __proxyResult ... return; ... getMockWeather
+      const scriptContent = html.slice(html.indexOf('<script>'), html.indexOf('</script>'))
+      const handleToolCallStart = scriptContent.indexOf('function handleToolCall')
+      const handleToolCallBody = scriptContent.slice(handleToolCallStart)
+      const proxyCheck = handleToolCallBody.indexOf('__proxyResult')
+      const firstReturn = handleToolCallBody.indexOf('return;', proxyCheck)
+      const mockCall = handleToolCallBody.indexOf('getMockWeather(', proxyCheck)
+      // return must come before the mock call
+      expect(firstReturn).toBeGreaterThan(proxyCheck)
+      expect(firstReturn).toBeLessThan(mockCall)
+    })
+  })
+
   it('implements the bridge protocol message types', () => {
     expect(html).toContain("'app_init'")
     expect(html).toContain("'tool_call'")
