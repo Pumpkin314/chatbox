@@ -30,9 +30,19 @@ import SidePanel from '../SidePanel'
 const mockSendMessage = vi.fn().mockResolvedValue(undefined)
 const mockInstallMessageListener = vi.fn().mockReturnValue(() => {})
 
+// Capture handlers registered via onMessage so we can invoke them in tests
+let registeredBridgeHandlers: Array<(msg: unknown) => void> = []
+const mockOnMessage = vi.fn((handler: (msg: unknown) => void) => {
+  registeredBridgeHandlers.push(handler)
+  return () => {
+    registeredBridgeHandlers = registeredBridgeHandlers.filter((h) => h !== handler)
+  }
+})
+
 vi.mock('@/chatbridge/bridge', () => ({
   sendMessage: (...args: unknown[]) => mockSendMessage(...args),
   installMessageListener: () => mockInstallMessageListener(),
+  onMessage: (handler: (msg: unknown) => void) => mockOnMessage(handler),
   clearPending: vi.fn(),
   clearHandlers: vi.fn(),
 }))
@@ -138,6 +148,7 @@ async function dispatchWindowMessage(data: unknown) {
 describe('SidePanel OAuth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    registeredBridgeHandlers = []
 
     // Mock window.open
     mockWindowOpen = vi.fn().mockReturnValue({ closed: false })
@@ -163,12 +174,17 @@ describe('SidePanel OAuth', () => {
     const iframe = screen.getByTestId('chatbridge-iframe')
     fireEvent.load(iframe)
 
-    // Simulate auth_request message from iframe (BridgeMessage format)
-    await dispatchWindowMessage({
-      type: 'auth_request',
-      id: 'msg-123',
-      payload: { provider: 'google', appId: 'google-books' },
-      timestamp: Date.now(),
+    // Simulate auth_request dispatched through bridge handler (BridgeMessage format)
+    await act(async () => {
+      for (const handler of registeredBridgeHandlers) {
+        handler({
+          type: 'auth_request',
+          id: 'msg-123',
+          payload: { provider: 'google', appId: 'google-books' },
+          timestamp: Date.now(),
+        })
+      }
+      await new Promise((r) => setTimeout(r, 50))
     })
 
     expect(mockWindowOpen).toHaveBeenCalled()
@@ -217,11 +233,17 @@ describe('SidePanel OAuth', () => {
     const iframe = screen.getByTestId('chatbridge-iframe')
     fireEvent.load(iframe)
 
-    await dispatchWindowMessage({
-      type: 'auth_request',
-      id: 'msg-456',
-      payload: { provider: 'google', appId: 'google-books' },
-      timestamp: Date.now(),
+    // Simulate auth_request through bridge handler
+    await act(async () => {
+      for (const handler of registeredBridgeHandlers) {
+        handler({
+          type: 'auth_request',
+          id: 'msg-456',
+          payload: { provider: 'google', appId: 'google-books' },
+          timestamp: Date.now(),
+        })
+      }
+      await new Promise((r) => setTimeout(r, 50))
     })
 
     expect(mockSendMessage).toHaveBeenCalledWith(
