@@ -248,7 +248,7 @@ No localStorage (sandbox blocks it). If iframe reloads, auth UI state resets —
 
 ## 6. OAuth Callback Page
 
-`src/renderer/chatbridge/oauth-callback.html` — ~30 lines of HTML/JS. Copied to build output at `/auth/callback.html` by the Vite copy plugin (same plugin that copies app HTML files, configured in `vite.config.ts`). The source path is `src/renderer/chatbridge/oauth-callback.html` and the output path is `dist/auth/callback.html`, served at `http://localhost:3000/auth/callback.html` in dev.
+`src/renderer/chatbridge/oauth-callback.html` — ~30 lines of HTML/JS. Copied to build output at `/auth/callback.html` by the Vite copy plugin (same plugin that copies app HTML files, configured in `electron.vite.config.ts`). The source path is `src/renderer/chatbridge/oauth-callback.html` and the output path is `dist/auth/callback.html`, served at `http://localhost:3000/auth/callback.html` in dev.
 
 **Behavior:**
 1. Extracts `code` and `state` (or `error`) from URL query params
