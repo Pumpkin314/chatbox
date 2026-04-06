@@ -36,7 +36,7 @@ test.describe('Google Books App E2E', () => {
     await waitForPanel(page)
 
     const title = await getPanelTitle(page)
-    expect(title.toLowerCase()).toContain('book')
+    expect(title.toLowerCase()).toContain('reading assistant')
 
     logStep('google-books-search', 'PASSED: Google Books panel visible after search')
 
