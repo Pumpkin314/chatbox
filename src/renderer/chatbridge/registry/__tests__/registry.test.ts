@@ -8,21 +8,22 @@ import {
 
 describe('Registry', () => {
   describe('loadRegistry', () => {
-    it('returns 7 apps', () => {
+    it('returns 8 apps', () => {
       const apps = loadRegistry()
-      expect(apps).toHaveLength(7)
+      expect(apps).toHaveLength(8)
     })
   })
 
   describe('getEnabledApps', () => {
-    it('returns 5 enabled apps (excludes disabled rubiks and spotify)', () => {
+    it('returns 6 enabled apps (excludes disabled rubiks and spotify)', () => {
       const apps = getEnabledApps()
-      expect(apps).toHaveLength(5)
+      expect(apps).toHaveLength(6)
       const ids = apps.map((a) => a.id)
       expect(ids).toContain('chess')
       expect(ids).toContain('weather')
       expect(ids).toContain('contract-test')
       expect(ids).toContain('nasa')
+      expect(ids).toContain('google-books')
       expect(ids).not.toContain('spotify')
       expect(ids).not.toContain('rubiks')
     })
@@ -58,16 +59,18 @@ describe('Registry', () => {
       expect(appIdParam.enum).toContain('weather')
       expect(appIdParam.enum).toContain('contract-test')
       expect(appIdParam.enum).toContain('nasa')
+      expect(appIdParam.enum).toContain('google-books')
       expect(appIdParam.enum).not.toContain('spotify')
       expect(appIdParam.enum).not.toContain('rubiks')
     })
 
-    it('description mentions all 4 enabled apps', () => {
+    it('description mentions all enabled apps', () => {
       const tool = generateOpenAppTool()
       expect(tool.description).toContain('Chess')
       expect(tool.description).toContain('Weather Dashboard')
       expect(tool.description).toContain('Contract Test')
       expect(tool.description).toContain('Space Explorer')
+      expect(tool.description).toContain('Reading Assistant')
       expect(tool.description).not.toContain('Spotify Playlist Creator')
     })
   })
@@ -92,6 +95,35 @@ describe('Registry', () => {
     it('has correct entrypoint', () => {
       const app = getAppById('contract-test')!
       expect(app.entrypoint).toBe('/apps/contract-test/index.html')
+    })
+  })
+
+  describe('google-books app', () => {
+    it('exists in registry and is enabled', () => {
+      const app = getAppById('google-books')
+      expect(app).not.toBeNull()
+      expect(app!.enabled).toBe(true)
+      expect(app!.type).toBe('external_authenticated')
+    })
+
+    it('has 5 tools', () => {
+      const app = getAppById('google-books')!
+      expect(app.tools).toHaveLength(5)
+      const names = app.tools.map((t) => t.name)
+      expect(names).toContain('search_books')
+      expect(names).toContain('get_book_details')
+      expect(names).toContain('get_reading_list')
+      expect(names).toContain('add_to_shelf')
+      expect(names).toContain('remove_from_shelf')
+    })
+
+    it('has oauth2_pkce auth config for Google', () => {
+      const app = getAppById('google-books')!
+      expect(app.authConfig).toMatchObject({
+        type: 'oauth2_pkce',
+        provider: 'google',
+        clientIdEnvVar: 'VITE_GOOGLE_BOOKS_CLIENT_ID',
+      })
     })
   })
 
