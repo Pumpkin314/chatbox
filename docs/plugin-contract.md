@@ -254,6 +254,6 @@ ChatBridge.onToolCall(function(toolName, params) {
 
 4. **`__proxyResult` injection:** For host-proxied API tools, the result is injected as `args.__proxyResult` in the `tool_call` payload sent to the iframe. Apps should check for this field to display pre-fetched results.
 
-5. **Auto-open behavior:** If the LLM calls an app-specific tool without first calling `open_app`, `routeToolCall()` will find the owning app and auto-open it via `handleOpenApp()`.
+5. **Tool gating enforcement:** If the LLM calls an app-specific tool without first calling `open_app`, `routeToolCall()` returns an error message telling the LLM to call `open_app` first. It does NOT auto-open the app.
 
 6. **HOST_MESSAGE_TYPES constant:** The `HOST_MESSAGE_TYPES` array in `bridge.ts` is a type-level constant and may not reflect all message types actually sent by the host. The actual protocol is defined by what `SidePanel.tsx` and `tool-router.ts` send.

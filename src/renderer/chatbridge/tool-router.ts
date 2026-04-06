@@ -60,7 +60,12 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     if (!storeRef) {
       return JSON.stringify({ success: false, error: 'Store not initialized' })
     }
+    const closingAppId = storeRef.get(activeAppAtom)
     handleCloseApp(storeRef)
+    // Clear FlashForge deck store when closing flashforge
+    if (closingAppId === 'flashforge') {
+      deckStore.clear()
+    }
     return JSON.stringify({ success: true })
   }
 
@@ -322,7 +327,7 @@ const CARD_TEMPLATES: Record<string, FlashCard[]> = {
     { front: 'What is the chemical formula for table salt?', back: 'NaCl' },
     { front: 'How many chromosomes do humans have?', back: '46' },
     { front: 'What is absolute zero in Celsius?', back: '-273.15' },
-    { front: 'What type of rock is formed from lava?', back: 'Ignite' },
+    { front: 'What type of rock is formed from lava?', back: 'Igneous' },
     { front: 'What is the most abundant gas in Earth\'s atmosphere?', back: 'Nitrogen' },
     { front: 'What is E = mc^2 called?', back: 'Mass-energy equivalence' },
     { front: 'What is the pH of pure water?', back: '7' },
@@ -392,7 +397,7 @@ function generateCards(topic: string, count: number): FlashCard[] {
 function handleFlashForgeTool(toolName: string, args: Record<string, unknown>): Record<string, unknown> | null {
   if (toolName === 'create_deck') {
     const topic = args.topic as string
-    const rawCount = args.card_count as number
+    const rawCount = Number(args.card_count) || 5
     const card_count = Math.max(3, Math.min(20, rawCount))
     const deck_id = `deck_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const cards = generateCards(topic, card_count)

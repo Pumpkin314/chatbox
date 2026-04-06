@@ -256,7 +256,7 @@ The app calls a public API that requires a key. The key is stored in an environm
 }
 ```
 
-The host injects the key into the app via `app_init` payload. The key is read from the Vite environment at build time.
+The API key never reaches the iframe. Instead, the host proxies all API calls: `tool-router.ts` reads the key from the Vite environment at build time and makes the API request server-side, then sends the result to the iframe via the `__proxyResult` pattern.
 
 ### `oauth2_pkce` -- User-Authenticated APIs
 

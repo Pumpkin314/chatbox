@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createStore } from 'jotai'
-import { routeToolCall, setStoreRef } from '../tool-router'
+import { routeToolCall, setStoreRef, _resetDeckStore } from '../tool-router'
 import { getChatBridgeTools } from '../tools'
 import { buildToolSet } from '../tool-builder'
 import { getAppById } from '../registry'
+import { handleOpenApp } from '../app-lifecycle'
 
 describe('FlashForge', () => {
   let store: ReturnType<typeof createStore>
@@ -11,6 +12,9 @@ describe('FlashForge', () => {
   beforeEach(() => {
     store = createStore()
     setStoreRef(store)
+    _resetDeckStore()
+    // Activate flashforge so tool routing works (tool gating)
+    handleOpenApp(store, 'flashforge')
   })
 
   describe('registry', () => {
@@ -35,7 +39,7 @@ describe('FlashForge', () => {
     })
 
     it('tools appear in getChatBridgeTools', () => {
-      const tools = getChatBridgeTools(null)
+      const tools = getChatBridgeTools('flashforge')
       const names = tools.map((t) => t.name)
       expect(names).toContain('create_deck')
       expect(names).toContain('study_card')

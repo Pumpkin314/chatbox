@@ -8,16 +8,16 @@ import {
 
 describe('Registry', () => {
   describe('loadRegistry', () => {
-    it('returns 6 apps', () => {
+    it('returns 7 apps', () => {
       const apps = loadRegistry()
-      expect(apps).toHaveLength(6)
+      expect(apps).toHaveLength(7)
     })
   })
 
   describe('getEnabledApps', () => {
-    it('returns 4 enabled apps (excludes disabled rubiks and spotify)', () => {
+    it('returns 5 enabled apps (excludes disabled rubiks and spotify)', () => {
       const apps = getEnabledApps()
-      expect(apps).toHaveLength(4)
+      expect(apps).toHaveLength(5)
       const ids = apps.map((a) => a.id)
       expect(ids).toContain('chess')
       expect(ids).toContain('weather')

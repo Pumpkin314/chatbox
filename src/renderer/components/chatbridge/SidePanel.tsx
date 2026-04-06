@@ -187,15 +187,19 @@ export default function SidePanel({ displayMode = 'panel' }: SidePanelProps) {
             style={{ position: 'absolute', inset: 0, zIndex: 1, padding: 16 }}
           >
             <IconAlertTriangle size={32} color="var(--chatbox-tint-error, #f44336)" />
-            <Text size="sm" c="chatbox-error" ta="center">{errorMessage || 'Something went wrong'}</Text>
-            <Text
-              size="xs"
-              c="chatbox-brand"
-              style={{ cursor: 'pointer', textDecoration: 'underline' }}
-              onClick={() => { setPanelState('loading'); setErrorMessage(null); setRetryCount((c) => c + 1) }}
-            >
-              Retry
+            <Text size="sm" c="chatbox-error" ta="center">
+              {retryCount >= 3 ? 'App unavailable. Try again later.' : (errorMessage || 'Something went wrong')}
             </Text>
+            {retryCount < 3 && (
+              <Text
+                size="xs"
+                c="chatbox-brand"
+                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => { setPanelState('loading'); setErrorMessage(null); setRetryCount((c) => c + 1) }}
+              >
+                Retry
+              </Text>
+            )}
           </Flex>
         )}
         <iframe
