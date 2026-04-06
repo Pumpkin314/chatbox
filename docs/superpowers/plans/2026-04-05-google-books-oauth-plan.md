@@ -9,6 +9,7 @@
 **Compaction:** auto
 
 **Spec:** `docs/superpowers/specs/2026-04-05-google-books-oauth-design.md`
+**Sprint numbering:** This plan uses Sprint 0/1/2. The spec uses Sprint 2/3 (inherited from the skeleton). Mapping: Plan Sprint 0 = foundation, Plan Sprint 1 = Spec Sprint 2 (search), Plan Sprint 2 = Spec Sprint 3 (OAuth).
 
 **External services:**
 - Google Books API — API key for search, OAuth2 for bookshelves
@@ -88,11 +89,11 @@
 - [ ] Regression: weather and NASA proxy calls unaffected
 
 #### Commit 1.1.1: Write unit tests for Google Books proxy
-- [ ] In `tool-router.test.ts` or new `google-books-proxy.test.ts`:
-  - Test `search_books` with mocked fetch → correct response shape
-  - Test `get_book_details` with mocked fetch → correct response shape
-  - Test mock fallback when API key is empty string
-  - Test OAuth tools return `auth_required` when no token
+- [ ] In `tool-router.test.ts`: add tests for search_books and get_book_details proxy routing, OAuth tools returning auth_required
+- [ ] Create `src/renderer/chatbridge/apps/google-books/__tests__/google-books.test.ts`:
+  - Test response shape mapping from Google API format to tool schema (books array structure)
+  - Test mock data fallback when API key missing (3 hardcoded books, correct shape)
+  - Test get_book_details response mapping
 - [ ] Verify: tests fail (TDD red)
 
 #### Commit 1.1.2: Implement search proxy in tool-router.ts
@@ -104,7 +105,7 @@
 
 ### PR 1.2: Google Books iframe app (search UI)
 **Branch:** `sprint-1/search-ui`
-**Depends on:** PR 0.1 (can run parallel with PR 1.1 for UI work, merge after 1.1)
+**Depends on:** PR 0.1 (authored in parallel with PR 1.1, but merged and verified AFTER PR 1.1 — search card rendering requires proxy code)
 **Existing code touched:** none (new file only)
 **Patterns to follow:** NASA app dark theme, card layout, bridge-sdk inlined, `__proxyResult` handler
 **TDD:** no (HTML/UI — tested via E2E)
@@ -189,8 +190,8 @@
 **Verification criteria:**
 - [ ] `generateCodeVerifier()` returns 43-128 char random string
 - [ ] `generateCodeChallenge(verifier)` returns correct base64url SHA-256
-- [ ] `exchangeCodeForTokens(code, verifier, clientId, redirectUri)` calls Google token endpoint, returns tokens
-- [ ] `refreshAccessToken(refreshToken, clientId)` calls Google refresh endpoint, returns new access token
+- [ ] `exchangeCodeForTokens(code, verifier, clientId, redirectUri)` calls Google token endpoint, returns tokens with computed `expires_at = Date.now() + expires_in * 1000`
+- [ ] `refreshAccessToken(refreshToken, clientId)` calls Google refresh endpoint, returns new access token with computed `expires_at`
 - [ ] Refresh mutex: concurrent refresh calls share same promise
 - [ ] PKCE state map: stores and retrieves verifier by state, cleans up after 5 min
 - [ ] Error handling: exchange failure, refresh failure, invalid state
@@ -204,6 +205,7 @@
 - [ ] Test refresh: mock fetch, verify grant_type=refresh_token, handle success + failure + 401
 - [ ] Test mutex: two concurrent refreshes resolve to same token
 - [ ] Test state map: store, retrieve, TTL cleanup
+- [ ] Test `deleteToken`: mock Supabase delete, verify called with correct user_id + app_id
 - [ ] Verify: tests fail (TDD red)
 
 #### Commit 2.2.2: Implement oauth.ts
@@ -256,6 +258,7 @@
 - [ ] In SidePanel.tsx effect block (~line 79):
   - Add `auth_request` handler on bridge message listener: call `startOAuthFlow(appId)`, `window.open(authUrl)`
   - Add `window.addEventListener('message')` for `oauth_callback`: validate state, exchange code, store token, send `auth_result` to iframe
+- [ ] **Note:** `oauth_callback` uses raw `postMessage` (NOT BridgeMessage) — the popup does not use bridge-sdk. Validate by checking `event.data.type === 'oauth_callback'` and looking up `state` in PKCE map. Do NOT route through bridge.
 - [ ] Import `startOAuthFlow`, `exchangeCodeForTokens`, `storeToken` from oauth.ts
 - [ ] Cleanup: remove window listener on unmount
 - [ ] Verify: tests pass (TDD green)
@@ -314,6 +317,7 @@
   - Test: Bookshelf — pre-seed token via mocked Supabase, mock LLM calls get_reading_list, verify shelf data renders
   - Test: Add to shelf — mock LLM calls add_to_shelf, intercept Google API (204), verify confirmation
   - Test: Consent denied — callback posts error, verify iframe shows sign-in
+  - Test: Callback page — navigate to `/auth/callback.html?code=test&state=test` directly, verify it posts correct `{type: 'oauth_callback', code, state}` shape to opener (or shows fallback if no opener)
 - [ ] Verify: all google-books E2E tests pass
 
 **Sprint 2 gate:**
@@ -348,10 +352,10 @@ Sprint 2:
 | Sprint | Parallel Set | PRs | Why Parallel |
 |--------|-------------|-----|-------------|
 | 0 | — | PR 0.1 | Single PR, foundation |
-| 1 | Set A | PR 1.1 + PR 1.2 | Proxy code and UI are independent until merge |
+| 1 | Set A | PR 1.1 + PR 1.2 | Authored in parallel; PR 1.2 merged after PR 1.1 (runtime dependency) |
 | 1 | Set B | PR 1.3 | Needs both 1.1 + 1.2 merged |
 | 2 | Set A | PR 2.1 + PR 2.2 | Migration and OAuth core are independent |
-| 2 | Set B | PR 2.3 + PR 2.4 | SidePanel and tool-router both depend on 2.2 but not each other |
+| 2 | Set B | PR 2.3 + PR 2.4 | Both need PR 2.2; PR 2.4 also needs PR 2.1 (asymmetric deps, but neither blocks the other) |
 | 2 | Set C | PR 2.5 | Needs all Sprint 2 PRs merged |
 
 **Max parallel agents:** 2 (Sprint 1 Set A, Sprint 2 Set A and Set B)
