@@ -6,7 +6,7 @@
     "type": "internal",
     "tools": [
       { "name": "start_game", "description": "Start a new chess game", "parameters": { "type": "object", "properties": { "color": { "type": "string", "enum": ["white", "black"], "description": "Which color the user plays as" } }, "required": [] } },
-      { "name": "make_move", "description": "Make a chess move on the board", "parameters": { "type": "object", "properties": { "from": { "type": "string", "description": "Square to move from (e.g. e2)" }, "to": { "type": "string", "description": "Square to move to (e.g. e4)" } }, "required": ["from", "to"] } },
+      { "name": "make_move", "description": "Make the AI OPPONENT's move on the board. Only use this for the AI's moves, NEVER for the user's moves. The user moves by clicking the board. If it is the user's turn, do NOT call this tool — wait for the user to click.", "parameters": { "type": "object", "properties": { "from": { "type": "string", "description": "Square to move from (e.g. e7)" }, "to": { "type": "string", "description": "Square to move to (e.g. e5)" } }, "required": ["from", "to"] } },
       { "name": "get_board", "description": "Get the current board state and legal moves", "parameters": { "type": "object", "properties": {} } },
       { "name": "get_hint", "description": "Get the current board position for analysis", "parameters": { "type": "object", "properties": {} } },
       { "name": "resign", "description": "Resign the current game", "parameters": { "type": "object", "properties": {} } }

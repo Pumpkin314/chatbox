@@ -147,11 +147,13 @@ html, body {
 
 .coord-label {
   position: absolute;
-  font-size: 9px;
-  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.85;
 }
+.square.light .coord-label { color: var(--dark-sq); }
+.square.dark .coord-label { color: var(--light-sq); }
 .coord-file { bottom: 1px; right: 3px; }
 .coord-rank { top: 1px; left: 3px; }
 
@@ -963,6 +965,7 @@ let lastMoveFrom = null;
 let lastMoveTo = null;
 let boardFlipped = false;
 let gameActive = true;
+let playerColor = 'w'; // The human player's color
 
 function genUUID() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -1091,8 +1094,8 @@ function renderBoard() {
         }
       }
 
-      // Coordinate labels
-      if (f === 7) {
+      // Coordinate labels — show rank on leftmost column, file on bottom row
+      if (f === 0) {
         const rankLabel = document.createElement('span');
         rankLabel.className = 'coord-label coord-rank';
         rankLabel.textContent = RANKS[dispR];
@@ -1130,6 +1133,8 @@ function findKing(color) {
 
 function onSquareClick(sqName) {
   if (!gameActive) return;
+  // Only allow the human player to click on their turn
+  if (game.turn() !== playerColor) return;
 
   // If we have a selected piece and click a legal move target
   if (selectedSquare && legalMovesForSelected.some(m => m.to === sqName)) {
@@ -1350,14 +1355,18 @@ function handleToolInvoke(msg) {
       document.getElementById('game-over-overlay').classList.remove('show');
 
       if (params && params.color === 'black') {
+        playerColor = 'b';
         boardFlipped = true;
       } else {
+        playerColor = 'w';
         boardFlipped = false;
       }
 
       renderBoard();
       respond('success', {
-        message: 'New game started',
+        message: `New game started. The user plays as ${playerColor === 'w' ? 'White' : 'Black'}. The AI opponent plays as ${playerColor === 'w' ? 'Black' : 'White'}. Use make_move ONLY for the AI opponent's moves. The user moves by clicking the board.`,
+        playerColor: playerColor === 'w' ? 'white' : 'black',
+        opponentColor: playerColor === 'w' ? 'black' : 'white',
         ...getStatePayload()
       });
       sendStateUpdate();
@@ -1371,6 +1380,14 @@ function handleToolInvoke(msg) {
       }
       if (!params || !params.from || !params.to) {
         respond('error', { message: 'Missing from/to parameters' });
+        return;
+      }
+      // make_move is for the AI opponent only — reject if it's the human player's turn
+      if (game.turn() === playerColor) {
+        respond('error', {
+          message: `It is the user's turn. Wait for the user to move by clicking the board. Do NOT call make_move for the user's pieces.`,
+          ...getStatePayload()
+        });
         return;
       }
 

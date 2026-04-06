@@ -70,12 +70,31 @@ describe('logTokenUsage', () => {
     )
   })
 
+  it('skips insert when no userId is provided', async () => {
+    const mockInsert = vi.fn().mockResolvedValue({ error: null })
+    const mockFrom = vi.fn().mockReturnValue({ insert: mockInsert })
+    mockGetSupabaseClient.mockReturnValue({ from: mockFrom } as any)
+
+    await logTokenUsage({
+      model: 'gpt-4o',
+      promptTokens: 100,
+      completionTokens: 50,
+    })
+
+    expect(mockFrom).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No authenticated user'),
+      expect.anything()
+    )
+  })
+
   it('calculates cost correctly for gpt-4o', async () => {
     const mockInsert = vi.fn().mockResolvedValue({ error: null })
     const mockFrom = vi.fn().mockReturnValue({ insert: mockInsert })
     mockGetSupabaseClient.mockReturnValue({ from: mockFrom } as any)
 
     await logTokenUsage({
+      userId: 'user-123',
       model: 'gpt-4o',
       promptTokens: 1_000_000,
       completionTokens: 1_000_000,
@@ -92,6 +111,7 @@ describe('logTokenUsage', () => {
     mockGetSupabaseClient.mockReturnValue({ from: mockFrom } as any)
 
     await logTokenUsage({
+      userId: 'user-123',
       model: 'gpt-4o-mini',
       promptTokens: 1_000_000,
       completionTokens: 1_000_000,
@@ -108,6 +128,7 @@ describe('logTokenUsage', () => {
     mockGetSupabaseClient.mockReturnValue({ from: mockFrom } as any)
 
     await logTokenUsage({
+      userId: 'user-123',
       model: 'some-unknown-model',
       promptTokens: 1_000_000,
       completionTokens: 1_000_000,
@@ -126,6 +147,7 @@ describe('logTokenUsage', () => {
     // Should not throw
     await expect(
       logTokenUsage({
+        userId: 'user-123',
         model: 'gpt-4o',
         promptTokens: 100,
         completionTokens: 50,
@@ -142,6 +164,7 @@ describe('logTokenUsage', () => {
 
     await expect(
       logTokenUsage({
+        userId: 'user-123',
         model: 'gpt-4o',
         promptTokens: 100,
         completionTokens: 50,
