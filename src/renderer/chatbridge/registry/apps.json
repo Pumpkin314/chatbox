@@ -134,5 +134,28 @@
     "entrypoint": "",
     "authConfig": null,
     "enabled": true
+  },
+  {
+    "id": "google-books",
+    "name": "Reading Assistant",
+    "description": "Search books and manage your reading list with Google Books",
+    "type": "external_authenticated",
+    "tools": [
+      {"name": "search_books", "description": "Search for books by topic, author, or title", "parameters": {"type": "object", "properties": {"query": {"type": "string"}, "maxResults": {"type": "number", "default": 5}}, "required": ["query"]}},
+      {"name": "get_book_details", "description": "Get detailed information about a book", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}}, "required": ["volume_id"]}},
+      {"name": "get_reading_list", "description": "Get the student's reading list from Google Books", "parameters": {"type": "object", "properties": {"shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read", "all"], "default": "all"}}}},
+      {"name": "add_to_shelf", "description": "Add a book to a reading list shelf", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}, "shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read"]}}, "required": ["volume_id", "shelf"]}},
+      {"name": "remove_from_shelf", "description": "Remove a book from a shelf", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}, "shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read"]}}, "required": ["volume_id", "shelf"]}}
+    ],
+    "entrypoint": "/apps/google-books/index.html",
+    "authConfig": {
+      "type": "oauth2_pkce",
+      "provider": "google",
+      "authUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "tokenUrl": "https://oauth2.googleapis.com/token",
+      "clientIdEnvVar": "VITE_GOOGLE_BOOKS_CLIENT_ID",
+      "scopes": ["https://www.googleapis.com/auth/books"]
+    },
+    "enabled": true
   }
 ]
