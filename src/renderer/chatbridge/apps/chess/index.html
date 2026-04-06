@@ -1151,7 +1151,20 @@ function onSquareClick(sqName) {
       selectedSquare = null;
       legalMovesForSelected = [];
       renderBoard();
-      sendStateUpdate();
+
+      // Send a detailed state update so the LLM knows to respond with opponent's move
+      sendToHost({
+        id: genUUID(),
+        type: 'state_update',
+        state: {
+          ...getStatePayload(),
+          userMove: result.san,
+          userMoveFrom: result.from,
+          userMoveTo: result.to,
+          action: 'user_moved',
+          instruction: `The user played ${result.san} (${result.from} to ${result.to}). It is now the AI opponent's turn. You MUST call make_move to play the opponent's response.`
+        }
+      });
 
       if (game.gameOver()) {
         gameActive = false;
@@ -1412,7 +1425,8 @@ function handleToolInvoke(msg) {
         from: result.from,
         to: result.to,
         captured: result.captured,
-        ...getStatePayload()
+        ...getStatePayload(),
+        instruction: `Opponent played ${result.san}. It is now the user's turn. Do NOT call make_move — wait for the user to click the board.`
       });
 
       sendStateUpdate();
