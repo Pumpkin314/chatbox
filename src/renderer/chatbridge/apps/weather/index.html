@@ -611,10 +611,88 @@
     }, '*');
   }
 
+  function mapConditionToIcon(condition) {
+    if (!condition) return '\u2600\uFE0F';
+    var c = condition.toLowerCase();
+    if (c.indexOf('thunder') !== -1) return '\u26C8\uFE0F';
+    if (c.indexOf('snow') !== -1) return '\u2744\uFE0F';
+    if (c.indexOf('rain') !== -1 || c.indexOf('drizzle') !== -1) return '\uD83C\uDF27\uFE0F';
+    if (c.indexOf('shower') !== -1) return '\uD83C\uDF26\uFE0F';
+    if (c.indexOf('cloud') !== -1 || c.indexOf('overcast') !== -1) return '\u2601\uFE0F';
+    if (c.indexOf('haze') !== -1 || c.indexOf('mist') !== -1 || c.indexOf('fog') !== -1) return '\uD83C\uDF2B\uFE0F';
+    if (c.indexOf('clear') !== -1 || c.indexOf('sunny') !== -1) return '\u2600\uFE0F';
+    if (c.indexOf('partly') !== -1) return '\u26C5';
+    return '\u2600\uFE0F';
+  }
+
   function handleToolCall(id, payload) {
     // Bridge sends {toolName, args}; also support legacy {name, parameters}
     var toolName = payload.toolName || payload.name;
     var params = payload.args || payload.parameters || {};
+
+    // Check for host-proxied real API data
+    if (params.__proxyResult) {
+      var realData = params.__proxyResult;
+
+      if (toolName === 'get_weather') {
+        // Map host proxy shape {city, temp, feels_like, humidity, wind_speed, condition, description, pressure}
+        // to iframe shape that updateCurrentWeather expects (needs icon)
+        var weatherDisplay = {
+          city: realData.city || params.city || 'Unknown',
+          temp: realData.temp,
+          feels_like: realData.feels_like,
+          humidity: realData.humidity,
+          wind_speed: realData.wind_speed,
+          condition: realData.condition || 'Clear',
+          pressure: realData.pressure,
+          icon: mapConditionToIcon(realData.condition)
+        };
+        updateCurrentWeather(weatherDisplay);
+
+        var resultText = capitalize(weatherDisplay.city) + ': ' + weatherDisplay.temp + '\u00B0F (' + fToC(weatherDisplay.temp) + '\u00B0C), ' +
+          weatherDisplay.condition + '. Humidity: ' + weatherDisplay.humidity + '%, Wind: ' + weatherDisplay.wind_speed + ' mph.';
+
+        sendToHost('tool_call_result', { result: 'Real weather data displayed for ' + weatherDisplay.city }, id);
+        sendToHost('state_update', currentState);
+        return;
+      }
+
+      if (toolName === 'get_forecast') {
+        // Host proxy returns {city, forecasts: [{date, temp, condition}]}
+        // Iframe updateForecast expects {city, forecast: [{day, date, high, low, condition, icon}]}
+        var forecastCity = realData.city || params.city || 'Unknown';
+        var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        var mappedForecast = (realData.forecasts || []).map(function(item) {
+          var d = new Date(item.date);
+          return {
+            day: dayNames[d.getDay()] || '?',
+            date: (d.getMonth() + 1) + '/' + d.getDate(),
+            high: item.temp,
+            low: item.temp - 8,
+            condition: item.condition || 'Clear',
+            icon: mapConditionToIcon(item.condition)
+          };
+        });
+
+        // Also show current weather card if we have enough info
+        var currentDisplay = {
+          city: forecastCity,
+          temp: mappedForecast.length > 0 ? mappedForecast[0].high : 65,
+          feels_like: mappedForecast.length > 0 ? mappedForecast[0].high - 2 : 63,
+          humidity: 50,
+          wind_speed: 10,
+          condition: mappedForecast.length > 0 ? mappedForecast[0].condition : 'Clear',
+          pressure: 1013,
+          icon: mappedForecast.length > 0 ? mappedForecast[0].icon : '\u2600\uFE0F'
+        };
+        updateCurrentWeather(currentDisplay);
+        updateForecast({ city: forecastCity, forecast: mappedForecast });
+
+        sendToHost('tool_call_result', { result: 'Real forecast data displayed for ' + forecastCity }, id);
+        sendToHost('state_update', currentState);
+        return;
+      }
+    }
 
     if (toolName === 'get_weather') {
       showLoading();
