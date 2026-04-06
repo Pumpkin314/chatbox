@@ -8,20 +8,21 @@ import {
 
 describe('Registry', () => {
   describe('loadRegistry', () => {
-    it('returns 5 apps', () => {
+    it('returns 6 apps', () => {
       const apps = loadRegistry()
-      expect(apps).toHaveLength(5)
+      expect(apps).toHaveLength(6)
     })
   })
 
   describe('getEnabledApps', () => {
-    it('returns 3 enabled apps (excludes disabled rubiks and spotify)', () => {
+    it('returns 4 enabled apps (excludes disabled rubiks and spotify)', () => {
       const apps = getEnabledApps()
-      expect(apps).toHaveLength(3)
+      expect(apps).toHaveLength(4)
       const ids = apps.map((a) => a.id)
       expect(ids).toContain('chess')
       expect(ids).toContain('weather')
       expect(ids).toContain('contract-test')
+      expect(ids).toContain('nasa')
       expect(ids).not.toContain('spotify')
       expect(ids).not.toContain('rubiks')
     })
@@ -49,22 +50,24 @@ describe('Registry', () => {
   })
 
   describe('generateOpenAppTool', () => {
-    it('has correct enum of enabled app IDs (no rubiks or spotify)', () => {
+    it('has correct enum of enabled app IDs', () => {
       const tool = generateOpenAppTool()
       expect(tool.name).toBe('open_app')
       const appIdParam = tool.parameters.properties.app_id
       expect(appIdParam.enum).toContain('chess')
       expect(appIdParam.enum).toContain('weather')
       expect(appIdParam.enum).toContain('contract-test')
+      expect(appIdParam.enum).toContain('nasa')
       expect(appIdParam.enum).not.toContain('spotify')
       expect(appIdParam.enum).not.toContain('rubiks')
     })
 
-    it('description mentions all 3 enabled apps', () => {
+    it('description mentions all 4 enabled apps', () => {
       const tool = generateOpenAppTool()
       expect(tool.description).toContain('Chess')
       expect(tool.description).toContain('Weather Dashboard')
       expect(tool.description).toContain('Contract Test')
+      expect(tool.description).toContain('Space Explorer')
       expect(tool.description).not.toContain('Spotify Playlist Creator')
     })
   })
@@ -89,6 +92,29 @@ describe('Registry', () => {
     it('has correct entrypoint', () => {
       const app = getAppById('contract-test')!
       expect(app.entrypoint).toBe('/apps/contract-test/index.html')
+    })
+  })
+
+  describe('nasa app', () => {
+    it('exists in registry and is enabled', () => {
+      const app = getAppById('nasa')
+      expect(app).not.toBeNull()
+      expect(app!.enabled).toBe(true)
+      expect(app!.type).toBe('external_public')
+    })
+
+    it('has 3 tools', () => {
+      const app = getAppById('nasa')!
+      expect(app.tools).toHaveLength(3)
+      const names = app.tools.map((t) => t.name)
+      expect(names).toContain('get_apod')
+      expect(names).toContain('get_mars_photos')
+      expect(names).toContain('get_asteroids')
+    })
+
+    it('has api_key auth config', () => {
+      const app = getAppById('nasa')!
+      expect(app.authConfig).toEqual({ type: 'api_key', envVar: 'VITE_NASA_API_KEY' })
     })
   })
 })

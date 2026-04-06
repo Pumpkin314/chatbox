@@ -162,11 +162,80 @@ async function executeHostProxiedTool(
       return { city: data.city.name, forecasts: dailyForecasts }
     }
 
+    if (toolName === 'get_apod') {
+      const date = (args.date as string) || new Date().toISOString().split('T')[0]
+      if (!apiKey) return getMockAPOD(date)
+      const res = await fetch(
+        `https://api.nasa.gov/planetary/apod?api_key=${apiKey}&date=${encodeURIComponent(date)}`,
+      )
+      if (!res.ok) return getMockAPOD(date)
+      const data = await res.json()
+      return {
+        title: data.title,
+        explanation: data.explanation,
+        url: data.url,
+        hdurl: data.hdurl ?? data.url,
+        date: data.date,
+        media_type: data.media_type,
+        copyright: data.copyright ?? null,
+      }
+    }
+
+    if (toolName === 'get_mars_photos') {
+      const rover = (args.rover as string) || 'curiosity'
+      const earthDate = (args.earth_date as string) || '2024-01-15'
+      if (!apiKey) return getMockMarsPhotos(rover, earthDate)
+      const res = await fetch(
+        `https://api.nasa.gov/mars-photos/api/v1/rovers/${encodeURIComponent(rover)}/photos?earth_date=${encodeURIComponent(earthDate)}&api_key=${apiKey}`,
+      )
+      if (!res.ok) return getMockMarsPhotos(rover, earthDate)
+      const data = await res.json()
+      const photos = (data.photos || []).slice(0, 6).map((p: Record<string, unknown>) => ({
+        id: p.id,
+        img_src: p.img_src,
+        camera: (p.camera as Record<string, unknown>)?.full_name ?? 'Unknown',
+        earth_date: p.earth_date,
+        rover: (p.rover as Record<string, unknown>)?.name ?? rover,
+      }))
+      return { photos, rover, earth_date: earthDate }
+    }
+
+    if (toolName === 'get_asteroids') {
+      const startDate = (args.start_date as string) || new Date().toISOString().split('T')[0]
+      const endDateDefault = new Date(new Date(startDate).getTime() + 7 * 86400000).toISOString().split('T')[0]
+      const endDate = (args.end_date as string) || endDateDefault
+      if (!apiKey) return getMockAsteroids(startDate, endDate)
+      const res = await fetch(
+        `https://api.nasa.gov/neo/rest/v1/feed?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&api_key=${apiKey}`,
+      )
+      if (!res.ok) return getMockAsteroids(startDate, endDate)
+      const data = await res.json()
+      const allObjects: Record<string, unknown>[] = []
+      for (const dateKey of Object.keys(data.near_earth_objects || {})) {
+        for (const obj of (data.near_earth_objects[dateKey] as Record<string, unknown>[])) {
+          const diameter = obj.estimated_diameter as Record<string, Record<string, number>>
+          const closeApproach = ((obj.close_approach_data as Record<string, unknown>[]) || [])[0] || {}
+          allObjects.push({
+            name: obj.name,
+            estimated_diameter_km: diameter?.kilometers?.estimated_diameter_max ?? 0,
+            is_potentially_hazardous: obj.is_potentially_hazardous_asteroid,
+            close_approach_date: (closeApproach as Record<string, unknown>).close_approach_date ?? dateKey,
+            miss_distance_km: ((closeApproach as Record<string, unknown>).miss_distance as Record<string, unknown>)?.kilometers ?? 'N/A',
+            relative_velocity_kmh: ((closeApproach as Record<string, unknown>).relative_velocity as Record<string, unknown>)?.kilometers_per_hour ?? 'N/A',
+          })
+        }
+      }
+      return { element_count: data.element_count ?? allObjects.length, near_earth_objects: allObjects, start_date: startDate, end_date: endDate }
+    }
+
     return { success: false, error: `Unknown proxied tool: ${toolName}` }
   } catch (err) {
     // Fallback to mock data on any error
     if (toolName === 'get_weather') return getMockWeather(args.city as string)
     if (toolName === 'get_forecast') return getMockForecast(args.city as string, (args.days as number) || 3)
+    if (toolName === 'get_apod') return getMockAPOD((args.date as string) || new Date().toISOString().split('T')[0])
+    if (toolName === 'get_mars_photos') return getMockMarsPhotos((args.rover as string) || 'curiosity', (args.earth_date as string) || '2024-01-15')
+    if (toolName === 'get_asteroids') return getMockAsteroids((args.start_date as string) || new Date().toISOString().split('T')[0], (args.end_date as string) || '')
     return { success: false, error: String(err) }
   }
 }
@@ -194,4 +263,40 @@ function getMockForecast(city: string, days: number): Record<string, unknown> {
     }
   })
   return { city, forecasts, mock: true }
+}
+
+function getMockAPOD(date: string): Record<string, unknown> {
+  return {
+    title: 'The Horsehead Nebula',
+    explanation: 'One of the most identifiable nebulae in the sky, the Horsehead Nebula in Orion, is part of a large, dark, molecular cloud. Also known as Barnard 33, the unusual shape was first discovered on a photographic plate in the late 1800s.',
+    url: 'https://apod.nasa.gov/apod/image/2401/Horsehead_hubble_960.jpg',
+    hdurl: 'https://apod.nasa.gov/apod/image/2401/Horsehead_hubble_2400.jpg',
+    date,
+    media_type: 'image',
+    copyright: 'NASA/ESA/Hubble',
+    mock: true,
+  }
+}
+
+function getMockMarsPhotos(rover: string, earthDate: string): Record<string, unknown> {
+  const cameras = ['Front Hazard Avoidance Camera', 'Rear Hazard Avoidance Camera', 'Mast Camera', 'Chemistry and Camera Complex', 'Navigation Camera', 'Mars Hand Lens Imager']
+  const photos = cameras.map((camera, i) => ({
+    id: 100000 + i,
+    img_src: `https://mars.nasa.gov/msl-raw-images/proj/msl/redops/ods/surface/sol/03000/opgs/edr/fcam/FRA_${String(i).padStart(4, '0')}.JPG`,
+    camera,
+    earth_date: earthDate,
+    rover: rover.charAt(0).toUpperCase() + rover.slice(1),
+  }))
+  return { photos, rover, earth_date: earthDate, mock: true }
+}
+
+function getMockAsteroids(startDate: string, endDate: string): Record<string, unknown> {
+  const asteroids = [
+    { name: '(2024 AA1)', estimated_diameter_km: 0.254, is_potentially_hazardous: false, close_approach_date: startDate, miss_distance_km: '4500000', relative_velocity_kmh: '45000' },
+    { name: '(2024 AB2)', estimated_diameter_km: 0.087, is_potentially_hazardous: false, close_approach_date: startDate, miss_distance_km: '7200000', relative_velocity_kmh: '32000' },
+    { name: '(2024 AC3)', estimated_diameter_km: 1.2, is_potentially_hazardous: true, close_approach_date: startDate, miss_distance_km: '2100000', relative_velocity_kmh: '67000' },
+    { name: '(2024 AD4)', estimated_diameter_km: 0.045, is_potentially_hazardous: false, close_approach_date: startDate, miss_distance_km: '15000000', relative_velocity_kmh: '28000' },
+    { name: '(2024 AE5)', estimated_diameter_km: 0.512, is_potentially_hazardous: false, close_approach_date: startDate, miss_distance_km: '6800000', relative_velocity_kmh: '52000' },
+  ]
+  return { element_count: asteroids.length, near_earth_objects: asteroids, start_date: startDate, end_date: endDate || startDate, mock: true }
 }

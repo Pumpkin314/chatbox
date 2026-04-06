@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Explorer</title>
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 12px;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #1e2040;
+    background: #0e0e24;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: #6a7090;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .tab-btn.active {
+    background: linear-gradient(135deg, #1a1a4e, #2a1a5e);
+    color: #c8b8ff;
+    box-shadow: inset 0 -2px 0 #7c5cff;
+  }
+
+  .tab-btn:hover:not(.active) {
+    color: #9090b0;
+    background: #12122e;
+  }
+
+  .tab-panel {
+    display: none;
+  }
+
+  .tab-panel.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .apod-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0e0e24;
+    border: 1px solid #1e2040;
+  }
+
+  .apod-image-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: #06061a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .apod-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.4s ease;
+  }
+
+  .apod-image-wrapper .placeholder {
+    font-size: 48px;
+    opacity: 0.3;
+  }
+
+  .apod-info {
+    padding: 16px;
+  }
+
+  .apod-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e8e0ff;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .apod-date {
+    font-size: 11px;
+    color: #6a7090;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .apod-copyright {
+    font-size: 10px;
+    color: #4a5070;
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+
+  .apod-explanation {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #a0a8c0;
+    max-height: 120px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a4e #0e0e24;
+  }
+
+  .apod-explanation::-webkit-scrollbar { width: 4px; }
+  .apod-explanation::-webkit-scrollbar-track { background: #0e0e24; }
+  .apod-explanation::-webkit-scrollbar-thumb { background: #2a2a4e; border-radius: 2px; }
+
+  .apod-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid #1e2040;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid #2a2a5e;
+    border-radius: 8px;
+    background: #12122e;
+    color: #8a8ac0;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .nav-btn:hover {
+    background: #1a1a4e;
+    color: #c8b8ff;
+    border-color: #4a4a8e;
+  }
+
+  .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .nav-date { font-size: 11px; color: #6a7090; font-weight: 500; }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #c8b8ff;
+    letter-spacing: 0.5px;
+  }
+
+  .section-subtitle { font-size: 11px; color: #4a5070; font-weight: 500; }
+
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .photo-card {
+    border-radius: 8px;
+    overflow: hidden;
+    background: #0e0e24;
+    border: 1px solid #1e2040;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .photo-card:hover {
+    border-color: #4a4a8e;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(124, 92, 255, 0.15);
+  }
+
+  .photo-card img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+  }
+
+  .photo-card .photo-label {
+    padding: 6px 8px;
+    font-size: 10px;
+    color: #8a8ac0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .photo-card .photo-placeholder {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #12122e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    opacity: 0.3;
+  }
+
+  .asteroid-table-wrapper {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #1e2040;
+    background: #0e0e24;
+  }
+
+  .asteroid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .asteroid-table th {
+    padding: 10px 8px;
+    text-align: left;
+    color: #8a8ac0;
+    font-weight: 600;
+    background: #12122e;
+    border-bottom: 1px solid #1e2040;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .asteroid-table td {
+    padding: 8px;
+    color: #a0a8c0;
+    border-bottom: 1px solid #141430;
+  }
+
+  .asteroid-table tr:last-child td { border-bottom: none; }
+  .asteroid-table tr:hover td { background: #14142e; }
+
+  .hazard-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .hazard-badge.hazardous {
+    background: rgba(255, 80, 80, 0.15);
+    color: #ff6060;
+    border: 1px solid rgba(255, 80, 80, 0.3);
+  }
+
+  .hazard-badge.safe {
+    background: rgba(80, 200, 120, 0.1);
+    color: #50c878;
+    border: 1px solid rgba(80, 200, 120, 0.2);
+  }
+
+  .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 12px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #1e2040;
+    border-top-color: #7c5cff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-text { font-size: 12px; color: #6a7090; }
+
+  .init-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .init-state .icon {
+    font-size: 56px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .init-state h2 {
+    font-size: 16px;
+    color: #c8b8ff;
+    font-weight: 600;
+  }
+
+  .init-state p {
+    font-size: 12px;
+    color: #6a7090;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  .photo-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 5, 20, 0.92);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: pointer;
+  }
+
+  .photo-modal.visible {
+    display: flex;
+  }
+
+  .photo-modal img { max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6); }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabExplore" onclick="switchTab('explore')">Explore</button>
+    <button class="tab-btn" id="tabDashboard" onclick="switchTab('dashboard')">Dashboard</button>
+  </div>
+
+  <!-- Explore Tab: APOD -->
+  <div class="tab-panel active" id="panelExplore">
+    <div id="apodLoading" class="loading-spinner" style="display:none;">
+      <div class="spinner"></div>
+      <span class="loading-text">Loading picture of the day...</span>
+    </div>
+    <div id="apodContent" class="apod-card">
+      <div class="apod-image-wrapper">
+        <span class="placeholder" id="apodPlaceholder">&#x1F30C;</span>
+        <img id="apodImage" style="display:none;" alt="Astronomy Picture of the Day" />
+      </div>
+      <div class="apod-info">
+        <div class="apod-title" id="apodTitle">Astronomy Picture of the Day</div>
+        <div class="apod-date" id="apodDateLabel">Loading...</div>
+        <div class="apod-copyright" id="apodCopyright" style="display:none;"></div>
+        <div class="apod-explanation" id="apodExplanation">
+          Ask me to explore space! I can show you NASA's Astronomy Picture of the Day, Mars rover photos, and near-Earth asteroid data.
+        </div>
+      </div>
+      <div class="apod-nav">
+        <button class="nav-btn" id="btnPrev" onclick="navigateAPOD(-1)">&#x2190; Previous</button>
+        <span class="nav-date" id="navDateDisplay"></span>
+        <button class="nav-btn" id="btnNext" onclick="navigateAPOD(1)">Next &#x2192;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Tab: Mars + Asteroids -->
+  <div class="tab-panel" id="panelDashboard">
+    <!-- Mars Photos -->
+    <div class="section-header">
+      <span class="section-title">Mars Rover Photos</span>
+      <span class="section-subtitle" id="marsRoverLabel">Curiosity</span>
+    </div>
+    <div id="marsLoading" class="loading-spinner" style="display:none;">
+      <div class="spinner"></div>
+      <span class="loading-text">Loading Mars photos...</span>
+    </div>
+    <div class="photo-grid" id="marsGrid">
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+      <div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">Awaiting data...</div></div>
+    </div>
+
+    <!-- Asteroids -->
+    <div class="section-header" style="margin-top: 8px;">
+      <span class="section-title">Near-Earth Asteroids</span>
+      <span class="section-subtitle" id="asteroidCountLabel">--</span>
+    </div>
+    <div id="asteroidLoading" class="loading-spinner" style="display:none;">
+      <div class="spinner"></div>
+      <span class="loading-text">Loading asteroid data...</span>
+    </div>
+    <div class="asteroid-table-wrapper" id="asteroidTableWrapper">
+      <table class="asteroid-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Diameter</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="asteroidBody">
+          <tr>
+            <td colspan="3" style="text-align:center; color:#4a5070; padding:20px;">
+              Awaiting asteroid data...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Photo Modal -->
+<div class="photo-modal" id="photoModal" onclick="closeModal()">
+  <img id="modalImage" src="" alt="Enlarged photo" />
+</div>
+
+<!-- Inlined bridge-sdk.js -->
+<script>
+;(function () {
+  'use strict'
+
+  if (window.ChatBridge) return
+
+  var toolCallHandlers = []
+  var messageHandlers = {}
+
+  function generateId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID()
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0
+      var v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  }
+
+  function sendToHost(type, payload, id) {
+    var message = {
+      type: type,
+      id: id || generateId(),
+      payload: payload || {},
+      timestamp: Date.now(),
+    }
+    window.parent.postMessage(message, '*')
+    return message.id
+  }
+
+  function handleMessage(event) {
+    var data = event.data
+    if (!data || typeof data !== 'object' || !data.type || !data.id) {
+      return
+    }
+
+    if (data.type === 'tool_call') {
+      var toolPayload = data.payload || {}
+      var toolName = toolPayload.name
+      var toolParams = toolPayload.parameters || {}
+
+      var handled = false
+      for (var i = 0; i < toolCallHandlers.length; i++) {
+        try {
+          var result = toolCallHandlers[i](toolName, toolParams)
+          if (result !== undefined) {
+            if (result && typeof result.then === 'function') {
+              result.then(
+                function (resolvedResult) {
+                  sendToHost('tool_call_result', { result: resolvedResult }, data.id)
+                },
+                function (err) {
+                  sendToHost(
+                    'error',
+                    { message: err && err.message ? err.message : 'Tool call failed' },
+                    data.id,
+                  )
+                },
+              )
+            } else {
+              sendToHost('tool_call_result', { result: result }, data.id)
+            }
+            handled = true
+            break
+          }
+        } catch (err) {
+          sendToHost(
+            'error',
+            { message: err && err.message ? err.message : 'Tool call handler error' },
+            data.id,
+          )
+          handled = true
+          break
+        }
+      }
+
+      if (!handled) {
+        sendToHost('error', { message: 'No handler for tool: ' + toolName }, data.id)
+      }
+      return
+    }
+
+    if (data.type === 'app_init') {
+      if (messageHandlers.init) {
+        try {
+          messageHandlers.init(data.payload)
+        } catch (_) {}
+      }
+      sendToHost('app_init_ack', {}, data.id)
+      return
+    }
+
+    if (data.type === 'ping') {
+      sendToHost('pong', {}, data.id)
+      return
+    }
+
+    if (messageHandlers[data.type]) {
+      try {
+        messageHandlers[data.type](data.payload, data.id)
+      } catch (_) {}
+    }
+  }
+
+  window.addEventListener('message', handleMessage)
+
+  window.ChatBridge = {
+    onToolCall: function (handler) {
+      if (typeof handler === 'function') {
+        toolCallHandlers.push(handler)
+      }
+    },
+    on: function (type, handler) {
+      if (typeof handler === 'function') {
+        messageHandlers[type] = handler
+      }
+    },
+    sendStateUpdate: function (state) {
+      sendToHost('state_update', state)
+    },
+    sendComplete: function (result) {
+      sendToHost('app_complete', result)
+    },
+    send: function (type, payload) {
+      return sendToHost(type, payload)
+    },
+  }
+})()
+</script>
+
+<!-- App Logic -->
+<script>
+;(function () {
+  'use strict'
+
+  // ---- State ----
+  var currentTab = 'explore'
+  var currentApodDate = new Date().toISOString().split('T')[0]
+  var apodData = null
+  var marsData = null
+  var asteroidData = null
+
+  // ---- DOM references ----
+  var els = {
+    tabExplore: document.getElementById('tabExplore'),
+    tabDashboard: document.getElementById('tabDashboard'),
+    panelExplore: document.getElementById('panelExplore'),
+    panelDashboard: document.getElementById('panelDashboard'),
+    apodImage: document.getElementById('apodImage'),
+    apodPlaceholder: document.getElementById('apodPlaceholder'),
+    apodTitle: document.getElementById('apodTitle'),
+    apodDateLabel: document.getElementById('apodDateLabel'),
+    apodCopyright: document.getElementById('apodCopyright'),
+    apodExplanation: document.getElementById('apodExplanation'),
+    apodLoading: document.getElementById('apodLoading'),
+    apodContent: document.getElementById('apodContent'),
+    btnPrev: document.getElementById('btnPrev'),
+    btnNext: document.getElementById('btnNext'),
+    navDateDisplay: document.getElementById('navDateDisplay'),
+    marsGrid: document.getElementById('marsGrid'),
+    marsLoading: document.getElementById('marsLoading'),
+    marsRoverLabel: document.getElementById('marsRoverLabel'),
+    asteroidBody: document.getElementById('asteroidBody'),
+    asteroidLoading: document.getElementById('asteroidLoading'),
+    asteroidCountLabel: document.getElementById('asteroidCountLabel'),
+    asteroidTableWrapper: document.getElementById('asteroidTableWrapper'),
+    photoModal: document.getElementById('photoModal'),
+    modalImage: document.getElementById('modalImage'),
+  }
+
+  // ---- Tab switching ----
+  window.switchTab = function (tab) {
+    currentTab = tab
+    els.tabExplore.className = 'tab-btn' + (tab === 'explore' ? ' active' : '')
+    els.tabDashboard.className = 'tab-btn' + (tab === 'dashboard' ? ' active' : '')
+    els.panelExplore.className = 'tab-panel' + (tab === 'explore' ? ' active' : '')
+    els.panelDashboard.className = 'tab-panel' + (tab === 'dashboard' ? ' active' : '')
+
+    ChatBridge.sendStateUpdate({ tab: tab, status: 'ready' })
+  }
+
+  // ---- APOD display ----
+  function displayAPOD(data) {
+    apodData = data
+    if (!data) return
+
+    els.apodTitle.textContent = data.title || 'Untitled'
+    els.apodDateLabel.textContent = data.date || ''
+    els.apodExplanation.textContent = data.explanation || ''
+    currentApodDate = data.date || currentApodDate
+
+    if (data.copyright) {
+      els.apodCopyright.textContent = '\u00A9 ' + data.copyright
+      els.apodCopyright.style.display = 'block'
+    } else {
+      els.apodCopyright.style.display = 'none'
+    }
+
+    if (data.media_type === 'image' && data.url) {
+      els.apodImage.src = data.url
+      els.apodImage.style.display = 'block'
+      els.apodPlaceholder.style.display = 'none'
+      els.apodImage.onerror = function () {
+        els.apodImage.style.display = 'none'
+        els.apodPlaceholder.style.display = 'block'
+      }
+    } else {
+      els.apodImage.style.display = 'none'
+      els.apodPlaceholder.style.display = 'block'
+    }
+
+    updateNavDate()
+    updateNextButton()
+
+    els.apodLoading.style.display = 'none'
+    els.apodContent.style.display = 'block'
+
+    ChatBridge.sendStateUpdate({
+      tab: 'explore',
+      apodDate: data.date,
+      apodTitle: data.title,
+    })
+  }
+
+  function updateNavDate() {
+    els.navDateDisplay.textContent = currentApodDate
+  }
+
+  function updateNextButton() {
+    var today = new Date().toISOString().split('T')[0]
+    els.btnNext.disabled = currentApodDate >= today
+  }
+
+  // ---- APOD navigation ----
+  window.navigateAPOD = function (direction) {
+    var parts = currentApodDate.split('-')
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+    d.setDate(d.getDate() + direction)
+
+    var today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (d > today) return
+
+    var earliest = new Date(1995, 5, 16)
+    if (d < earliest) return
+
+    var yyyy = d.getFullYear()
+    var mm = String(d.getMonth() + 1).padStart(2, '0')
+    var dd = String(d.getDate()).padStart(2, '0')
+    currentApodDate = yyyy + '-' + mm + '-' + dd
+    updateNavDate()
+    updateNextButton()
+
+    ChatBridge.sendStateUpdate({
+      tab: 'explore',
+      apodDate: currentApodDate,
+      navigating: true,
+    })
+  }
+
+  // ---- Mars photos display ----
+  function displayMarsPhotos(data) {
+    marsData = data
+    if (!data || !data.photos) return
+
+    var rover = data.rover || 'curiosity'
+    els.marsRoverLabel.textContent = rover.charAt(0).toUpperCase() + rover.slice(1)
+
+    var html = ''
+    var photos = data.photos.slice(0, 6)
+
+    for (var i = 0; i < 6; i++) {
+      if (i < photos.length) {
+        var photo = photos[i]
+        var imgSrc = photo.img_src || ''
+        var camera = photo.camera || 'Unknown Camera'
+        html += '<div class="photo-card" onclick="openPhoto(\'' + escapeAttr(imgSrc) + '\')">'
+        html += '<img src="' + escapeAttr(imgSrc) + '" alt="Mars photo" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'" />'
+        html += '<div class="photo-placeholder" style="display:none;">&#x1FA90;</div>'
+        html += '<div class="photo-label">' + escapeHtml(camera) + '</div>'
+        html += '</div>'
+      } else {
+        html += '<div class="photo-card"><div class="photo-placeholder">&#x1FA90;</div><div class="photo-label">No photo</div></div>'
+      }
+    }
+
+    els.marsGrid.innerHTML = html
+    els.marsLoading.style.display = 'none'
+
+    ChatBridge.sendStateUpdate({
+      tab: 'dashboard',
+      marsRover: rover,
+      marsPhotoCount: photos.length,
+    })
+  }
+
+  // ---- Asteroids display ----
+  function displayAsteroids(data) {
+    asteroidData = data
+    if (!data || !data.near_earth_objects) return
+
+    var count = data.element_count || data.near_earth_objects.length
+    els.asteroidCountLabel.textContent = count + ' found'
+
+    var objs = data.near_earth_objects
+    var html = ''
+
+    for (var i = 0; i < objs.length; i++) {
+      var a = objs[i]
+      var diam = typeof a.estimated_diameter_km === 'number'
+        ? a.estimated_diameter_km.toFixed(3) + ' km'
+        : a.estimated_diameter_km || '--'
+      var hazardous = a.is_potentially_hazardous
+      var badgeClass = hazardous ? 'hazardous' : 'safe'
+      var badgeText = hazardous ? 'Hazardous' : 'Safe'
+
+      html += '<tr>'
+      html += '<td>' + escapeHtml(a.name || '--') + '</td>'
+      html += '<td>' + escapeHtml(String(diam)) + '</td>'
+      html += '<td><span class="hazard-badge ' + badgeClass + '">' + badgeText + '</span></td>'
+      html += '</tr>'
+    }
+
+    if (html === '') {
+      html = '<tr><td colspan="3" style="text-align:center; color:#4a5070; padding:20px;">No asteroids found</td></tr>'
+    }
+
+    els.asteroidBody.innerHTML = html
+    els.asteroidLoading.style.display = 'none'
+    els.asteroidTableWrapper.style.display = 'block'
+  }
+
+  // ---- Mock data fallback ----
+  function displayMockData(toolName, params) {
+    if (toolName === 'get_apod') {
+      displayAPOD({
+        title: 'The Horsehead Nebula',
+        explanation: 'One of the most identifiable nebulae in the sky, the Horsehead Nebula in Orion is part of a large, dark molecular cloud. Also known as Barnard 33, its unusual shape was first discovered on a photographic plate in the late 1800s.',
+        url: '',
+        date: params.date || currentApodDate,
+        media_type: 'image',
+        copyright: 'NASA/ESA/Hubble',
+        mock: true,
+      })
+    } else if (toolName === 'get_mars_photos') {
+      var cameras = ['Front Hazard Avoidance Camera', 'Rear Hazard Avoidance Camera', 'Mast Camera', 'Chemistry Camera', 'Navigation Camera', 'Hand Lens Imager']
+      var mockPhotos = cameras.map(function (cam, idx) {
+        return { id: 100000 + idx, img_src: '', camera: cam, earth_date: params.earth_date || '2024-01-15', rover: params.rover || 'Curiosity' }
+      })
+      displayMarsPhotos({ photos: mockPhotos, rover: params.rover || 'curiosity', earth_date: params.earth_date || '2024-01-15', mock: true })
+    } else if (toolName === 'get_asteroids') {
+      displayAsteroids({
+        element_count: 3,
+        near_earth_objects: [
+          { name: '(2024 AA1)', estimated_diameter_km: 0.254, is_potentially_hazardous: false },
+          { name: '(2024 AC3)', estimated_diameter_km: 1.2, is_potentially_hazardous: true },
+          { name: '(2024 AD4)', estimated_diameter_km: 0.045, is_potentially_hazardous: false },
+        ],
+        mock: true,
+      })
+    }
+  }
+
+  // ---- Photo modal ----
+  window.openPhoto = function (src) {
+    if (!src) return
+    els.modalImage.src = src
+    els.photoModal.className = 'photo-modal visible'
+
+    ChatBridge.sendStateUpdate({
+      tab: 'dashboard',
+      selectedPhoto: { src: src },
+    })
+  }
+
+  window.closeModal = function () {
+    els.photoModal.className = 'photo-modal'
+    els.modalImage.src = ''
+  }
+
+  // ---- Utility ----
+  function escapeHtml(str) {
+    var d = document.createElement('div')
+    d.textContent = str
+    return d.innerHTML
+  }
+
+  function escapeAttr(str) {
+    return str.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  // ---- Bridge handlers ----
+  ChatBridge.on('app_init', function (payload) {
+    ChatBridge.sendStateUpdate({ tab: 'explore', status: 'ready' })
+    updateNavDate()
+    updateNextButton()
+    return { status: 'initialized' }
+  })
+
+  ChatBridge.onToolCall(function (toolName, params) {
+    // Handle proxy results from host
+    if (params.__proxyResult) {
+      if (toolName === 'get_apod') {
+        displayAPOD(params.__proxyResult)
+        return { displayed: true }
+      }
+      if (toolName === 'get_mars_photos') {
+        displayMarsPhotos(params.__proxyResult)
+        return { displayed: true }
+      }
+      if (toolName === 'get_asteroids') {
+        displayAsteroids(params.__proxyResult)
+        return { displayed: true }
+      }
+    }
+
+    // Fallback to mock data
+    displayMockData(toolName, params)
+    return { displayed: true, mock: true }
+  })
+
+  // ---- Init ----
+  updateNavDate()
+  updateNextButton()
+  ChatBridge.sendStateUpdate({ tab: 'explore', status: 'ready' })
+})()
+</script>
+</body>
+</html>
