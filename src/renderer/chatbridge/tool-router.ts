@@ -1,6 +1,7 @@
 import { createStore } from 'jotai'
 import { handleOpenApp, handleCloseApp, activeAppAtom } from './app-lifecycle'
 import { getAppById, getEnabledApps } from './registry'
+import { getOrRefreshToken } from './oauth'
 
 /**
  * Bridge interface — PR 2.2 will provide the real implementation.
@@ -107,8 +108,55 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     const OAUTH_REQUIRED_TOOLS = new Set(['get_reading_list', 'add_to_shelf', 'remove_from_shelf'])
 
     if (OAUTH_REQUIRED_TOOLS.has(toolName)) {
-      // Sprint 2 will add real token lookup here
-      return JSON.stringify({ error: 'auth_required', message: 'Please sign in with Google to manage your reading list' })
+      const token = await getOrRefreshToken(activeApp.id, activeApp.authConfig)
+      if (!token) {
+        return JSON.stringify({ error: 'auth_required', message: 'Please sign in with Google to manage your reading list' })
+      }
+
+      let result: Record<string, unknown> = {}
+
+      if (toolName === 'get_reading_list') {
+        const shelf = (args.shelf as string) || 'all'
+        if (shelf === 'all') {
+          const shelves = await Promise.all(
+            Object.entries(SHELF_MAP).map(async ([name, id]) => {
+              const res = await fetch(`https://www.googleapis.com/books/v1/mylibrary/bookshelves/${id}/volumes`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              const data = res.ok ? await res.json() : { items: [] }
+              return { name: SHELF_NAMES[name], id, books: ((data.items || []) as Record<string, unknown>[]).map(mapBookItem) }
+            }),
+          )
+          result = { shelves }
+        } else {
+          const shelfId = SHELF_MAP[shelf]
+          const res = await fetch(`https://www.googleapis.com/books/v1/mylibrary/bookshelves/${shelfId}/volumes`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const data = res.ok ? await res.json() : { items: [] }
+          result = { shelves: [{ name: SHELF_NAMES[shelf], id: shelfId, books: ((data.items || []) as Record<string, unknown>[]).map(mapBookItem) }] }
+        }
+      } else if (toolName === 'add_to_shelf') {
+        const shelfId = SHELF_MAP[args.shelf as string]
+        await fetch(`https://www.googleapis.com/books/v1/mylibrary/bookshelves/${shelfId}/addVolume?volumeId=${args.volume_id}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        result = { success: true, shelfName: SHELF_NAMES[args.shelf as string], bookTitle: args.volume_id as string }
+      } else if (toolName === 'remove_from_shelf') {
+        const shelfId = SHELF_MAP[args.shelf as string]
+        await fetch(`https://www.googleapis.com/books/v1/mylibrary/bookshelves/${shelfId}/removeVolume?volumeId=${args.volume_id}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        result = { success: true }
+      }
+
+      // Forward to iframe
+      if (bridgeRef) {
+        bridgeRef.sendToolCall(toolName, { ...args, __proxyResult: result }).catch(() => {})
+      }
+      return JSON.stringify(result)
     }
 
     // Non-OAuth tools (search_books, get_book_details) use API key proxy
@@ -137,6 +185,25 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
       success: false,
       error: `Bridge error for "${toolName}": ${err instanceof Error ? err.message : String(err)}`,
     })
+  }
+}
+
+// ─── Google Books OAuth shelf mapping ────────────────────────────────────────
+
+const SHELF_MAP: Record<string, number> = { to_read: 2, reading_now: 3, have_read: 4 }
+const SHELF_NAMES: Record<string, string> = { to_read: 'To Read', reading_now: 'Reading Now', have_read: 'Have Read' }
+
+/** Map a Google Books API volume item to a standard book shape. */
+function mapBookItem(item: Record<string, unknown>): Record<string, unknown> {
+  const info = (item.volumeInfo as Record<string, unknown>) || {}
+  const desc = (info.description as string) || ''
+  return {
+    id: item.id,
+    title: info.title ?? 'Unknown',
+    authors: (info.authors as string[]) || [],
+    thumbnail: (info.imageLinks as Record<string, unknown>)?.thumbnail ?? null,
+    pageCount: info.pageCount ?? null,
+    description: desc.length > 200 ? desc.slice(0, 200) + '...' : desc,
   }
 }
 
