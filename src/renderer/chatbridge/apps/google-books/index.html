@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Books</title>
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #1e1e2e;
+    color: #e0e0e8;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .container {
+    max-width: 380px;
+    margin: 0 auto;
+    padding: 12px;
+  }
+
+  /* Auth banner */
+  .auth-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #2a2a3c;
+    border: 1px solid #3a3a50;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+  }
+
+  .auth-banner.hidden {
+    display: none;
+  }
+
+  .auth-banner-text {
+    font-size: 12px;
+    color: #a0a0b8;
+    flex: 1;
+    margin-right: 10px;
+    line-height: 1.4;
+  }
+
+  .auth-btn {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    background: #4285f4;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .auth-btn:hover {
+    background: #3367d6;
+  }
+
+  .auth-error {
+    display: none;
+    font-size: 11px;
+    color: #ff6060;
+    margin-top: 6px;
+    padding: 0 14px;
+  }
+
+  .auth-error.visible {
+    display: block;
+  }
+
+  /* Bookshelf tabs */
+  .shelf-tabs {
+    display: none;
+    gap: 0;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #3a3a50;
+    background: #2a2a3c;
+  }
+
+  .shelf-tabs.visible {
+    display: flex;
+  }
+
+  .shelf-tab {
+    flex: 1;
+    padding: 9px 8px;
+    border: none;
+    background: transparent;
+    color: #7a7a98;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+  }
+
+  .shelf-tab.active {
+    background: #3a3a50;
+    color: #c8c8e0;
+    box-shadow: inset 0 -2px 0 #6c8cff;
+  }
+
+  .shelf-tab:hover:not(.active) {
+    color: #a0a0b8;
+    background: #323248;
+  }
+
+  /* Section headers */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #c8c8e0;
+    letter-spacing: 0.3px;
+  }
+
+  .section-subtitle {
+    font-size: 11px;
+    color: #6a6a88;
+    font-weight: 500;
+  }
+
+  /* Book cards */
+  .book-card {
+    display: flex;
+    gap: 12px;
+    background: #2a2a3c;
+    border: 1px solid #3a3a50;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+  }
+
+  .book-card:hover {
+    border-color: #5a5a78;
+    transform: translateY(-1px);
+  }
+
+  .book-card.expanded {
+    flex-direction: column;
+  }
+
+  .book-card.expanded .book-thumb-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  .book-card.expanded .book-thumb-wrapper img {
+    width: 100px;
+    height: auto;
+  }
+
+  .book-thumb-wrapper {
+    flex-shrink: 0;
+    width: 60px;
+  }
+
+  .book-thumb-wrapper img {
+    width: 60px;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+  }
+
+  .book-thumb-placeholder {
+    width: 60px;
+    height: 80px;
+    background: #3a3a50;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #6a6a88;
+  }
+
+  .book-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .book-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e0e0e8;
+    margin-bottom: 2px;
+    line-height: 1.3;
+  }
+
+  .book-authors {
+    font-size: 11px;
+    font-style: italic;
+    color: #8a8aa8;
+    margin-bottom: 4px;
+  }
+
+  .book-pages {
+    font-size: 10px;
+    color: #6a6a88;
+    margin-bottom: 6px;
+  }
+
+  .book-description {
+    font-size: 11px;
+    line-height: 1.5;
+    color: #a0a0b8;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .book-description.full {
+    -webkit-line-clamp: unset;
+    display: block;
+  }
+
+  /* Expanded detail fields */
+  .book-detail-fields {
+    display: none;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #a0a0b8;
+    line-height: 1.6;
+  }
+
+  .book-card.expanded .book-detail-fields {
+    display: block;
+  }
+
+  .detail-row {
+    margin-bottom: 4px;
+  }
+
+  .detail-label {
+    font-weight: 600;
+    color: #c8c8e0;
+  }
+
+  /* Shelf button */
+  .shelf-btn-wrapper {
+    margin-top: 8px;
+    position: relative;
+  }
+
+  .shelf-btn {
+    padding: 5px 10px;
+    border: 1px solid #3a3a50;
+    border-radius: 5px;
+    background: #323248;
+    color: #a0a0b8;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .shelf-btn:hover:not(:disabled) {
+    background: #3a3a50;
+    color: #e0e0e8;
+  }
+
+  .shelf-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .shelf-dropdown {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 4px;
+    background: #2a2a3c;
+    border: 1px solid #4a4a68;
+    border-radius: 6px;
+    overflow: hidden;
+    z-index: 10;
+    min-width: 140px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+
+  .shelf-dropdown.visible {
+    display: block;
+  }
+
+  .shelf-option {
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #c8c8e0;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .shelf-option:hover {
+    background: #3a3a50;
+  }
+
+  /* Confirmation toast */
+  .toast {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #3a3a50;
+    color: #e0e0e8;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+
+  .toast.visible {
+    display: block;
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.2s forwards;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  @keyframes toastOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  /* Reading list section */
+  .reading-list {
+    display: none;
+  }
+
+  .reading-list.visible {
+    display: block;
+  }
+
+  .reading-list-empty {
+    text-align: center;
+    padding: 30px 0;
+    color: #6a6a88;
+    font-size: 12px;
+  }
+
+  /* Init state */
+  .init-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .init-state.hidden {
+    display: none;
+  }
+
+  .init-state .icon {
+    font-size: 56px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .init-state h2 {
+    font-size: 16px;
+    color: #c8c8e0;
+    font-weight: 600;
+  }
+
+  .init-state p {
+    font-size: 12px;
+    color: #6a6a88;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+
+  /* Loading spinner */
+  .loading-spinner {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 12px;
+  }
+
+  .loading-spinner.visible {
+    display: flex;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #3a3a50;
+    border-top-color: #6c8cff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    font-size: 12px;
+    color: #6a6a88;
+  }
+
+  /* Search results area */
+  .search-results {
+    display: none;
+  }
+
+  .search-results.visible {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Auth Banner -->
+  <div class="auth-banner" id="authBanner">
+    <span class="auth-banner-text">Sign in with Google to manage your reading list</span>
+    <button class="auth-btn" id="authBtn" onclick="handleSignIn()">Sign in</button>
+  </div>
+  <div class="auth-error" id="authError"></div>
+
+  <!-- Bookshelf Tabs -->
+  <div class="shelf-tabs" id="shelfTabs">
+    <button class="shelf-tab active" onclick="switchShelfTab('to-read')">To Read</button>
+    <button class="shelf-tab" onclick="switchShelfTab('reading')">Reading Now</button>
+    <button class="shelf-tab" onclick="switchShelfTab('have-read')">Have Read</button>
+  </div>
+
+  <!-- Reading List (shown when shelf tab active + authenticated) -->
+  <div class="reading-list" id="readingList">
+    <div class="reading-list-empty" id="readingListEmpty">No books in this shelf yet.</div>
+    <div id="readingListCards"></div>
+  </div>
+
+  <!-- Init State -->
+  <div class="init-state" id="initState">
+    <span class="icon">&#x1F4DA;</span>
+    <h2>Google Books</h2>
+    <p>Ask me to search for books! I can find titles, authors, and details from Google Books.</p>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div class="loading-spinner" id="loadingSpinner">
+    <div class="spinner"></div>
+    <span class="loading-text">Searching books...</span>
+  </div>
+
+  <!-- Search Results -->
+  <div class="search-results" id="searchResults">
+    <div class="section-header">
+      <span class="section-title">Search Results</span>
+      <span class="section-subtitle" id="resultCount"></span>
+    </div>
+    <div id="searchResultCards"></div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Inlined bridge-sdk.js -->
+<script>
+;(function () {
+  'use strict'
+
+  if (window.ChatBridge) return
+
+  var toolCallHandlers = []
+  var messageHandlers = {}
+
+  function generateId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID()
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0
+      var v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  }
+
+  function sendToHost(type, payload, id) {
+    var message = {
+      type: type,
+      id: id || generateId(),
+      payload: payload || {},
+      timestamp: Date.now(),
+    }
+    window.parent.postMessage(message, '*')
+    return message.id
+  }
+
+  function handleMessage(event) {
+    var data = event.data
+    if (!data || typeof data !== 'object' || !data.type || !data.id) {
+      return
+    }
+
+    if (data.type === 'tool_call') {
+      var toolPayload = data.payload || {}
+      var toolName = toolPayload.name
+      var toolParams = toolPayload.parameters || {}
+
+      var handled = false
+      for (var i = 0; i < toolCallHandlers.length; i++) {
+        try {
+          var result = toolCallHandlers[i](toolName, toolParams)
+          if (result !== undefined) {
+            if (result && typeof result.then === 'function') {
+              result.then(
+                function (resolvedResult) {
+                  sendToHost('tool_call_result', { result: resolvedResult }, data.id)
+                },
+                function (err) {
+                  sendToHost(
+                    'error',
+                    { message: err && err.message ? err.message : 'Tool call failed' },
+                    data.id,
+                  )
+                },
+              )
+            } else {
+              sendToHost('tool_call_result', { result: result }, data.id)
+            }
+            handled = true
+            break
+          }
+        } catch (err) {
+          sendToHost(
+            'error',
+            { message: err && err.message ? err.message : 'Tool call handler error' },
+            data.id,
+          )
+          handled = true
+          break
+        }
+      }
+
+      if (!handled) {
+        sendToHost('error', { message: 'No handler for tool: ' + toolName }, data.id)
+      }
+      return
+    }
+
+    if (data.type === 'app_init') {
+      if (messageHandlers.init) {
+        try {
+          messageHandlers.init(data.payload)
+        } catch (_) {}
+      }
+      sendToHost('app_init_ack', {}, data.id)
+      return
+    }
+
+    if (data.type === 'ping') {
+      sendToHost('pong', {}, data.id)
+      return
+    }
+
+    if (messageHandlers[data.type]) {
+      try {
+        messageHandlers[data.type](data.payload, data.id)
+      } catch (_) {}
+    }
+  }
+
+  window.addEventListener('message', handleMessage)
+
+  window.ChatBridge = {
+    onToolCall: function (handler) {
+      if (typeof handler === 'function') {
+        toolCallHandlers.push(handler)
+      }
+    },
+    on: function (type, handler) {
+      if (typeof handler === 'function') {
+        messageHandlers[type] = handler
+      }
+    },
+    sendStateUpdate: function (state) {
+      sendToHost('state_update', state)
+    },
+    sendComplete: function (result) {
+      sendToHost('app_complete', result)
+    },
+    send: function (type, payload) {
+      return sendToHost(type, payload)
+    },
+  }
+})()
+</script>
+
+<!-- App Logic -->
+<script>
+;(function () {
+  'use strict'
+
+  // ---- State ----
+  var isAuthenticated = false
+  var currentBooks = []
+  var currentShelfTab = 'to-read'
+  var activeDropdown = null
+
+  // ---- DOM references ----
+  var els = {
+    authBanner: document.getElementById('authBanner'),
+    authBtn: document.getElementById('authBtn'),
+    authError: document.getElementById('authError'),
+    shelfTabs: document.getElementById('shelfTabs'),
+    readingList: document.getElementById('readingList'),
+    readingListEmpty: document.getElementById('readingListEmpty'),
+    readingListCards: document.getElementById('readingListCards'),
+    initState: document.getElementById('initState'),
+    loadingSpinner: document.getElementById('loadingSpinner'),
+    searchResults: document.getElementById('searchResults'),
+    searchResultCards: document.getElementById('searchResultCards'),
+    resultCount: document.getElementById('resultCount'),
+    toast: document.getElementById('toast'),
+  }
+
+  // ---- Utility ----
+  function escapeHtml(str) {
+    if (!str) return ''
+    var d = document.createElement('div')
+    d.textContent = str
+    return d.innerHTML
+  }
+
+  function showToast(message) {
+    els.toast.textContent = message
+    els.toast.className = 'toast visible'
+    setTimeout(function () {
+      els.toast.className = 'toast'
+    }, 2500)
+  }
+
+  // ---- Auth flow ----
+  window.handleSignIn = function () {
+    ChatBridge.send('auth_request', { provider: 'google', appId: 'google-books' })
+  }
+
+  function updateAuthUI() {
+    if (isAuthenticated) {
+      els.authBanner.className = 'auth-banner hidden'
+      els.authError.className = 'auth-error'
+      els.shelfTabs.className = 'shelf-tabs visible'
+      // Enable all shelf buttons
+      var btns = document.querySelectorAll('.shelf-btn')
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = false
+      }
+    } else {
+      els.authBanner.className = 'auth-banner'
+      els.shelfTabs.className = 'shelf-tabs'
+      els.readingList.className = 'reading-list'
+    }
+  }
+
+  ChatBridge.on('auth_result', function (payload) {
+    if (payload.success) {
+      isAuthenticated = true
+      updateAuthUI()
+      showToast('Signed in successfully')
+    } else {
+      els.authError.textContent = payload.error || 'Sign-in failed. Please try again.'
+      els.authError.className = 'auth-error visible'
+    }
+  })
+
+  // ---- Shelf tab switching ----
+  window.switchShelfTab = function (tab) {
+    currentShelfTab = tab
+    var tabBtns = document.querySelectorAll('.shelf-tab')
+    var tabs = ['to-read', 'reading', 'have-read']
+    for (var i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].className = 'shelf-tab' + (tabs[i] === tab ? ' active' : '')
+    }
+  }
+
+  // ---- Shelf dropdown ----
+  window.toggleShelfDropdown = function (bookId, event) {
+    event.stopPropagation()
+    var dd = document.getElementById('dropdown-' + bookId)
+    if (!dd) return
+    if (activeDropdown && activeDropdown !== dd) {
+      activeDropdown.className = 'shelf-dropdown'
+    }
+    if (dd.className.indexOf('visible') !== -1) {
+      dd.className = 'shelf-dropdown'
+      activeDropdown = null
+    } else {
+      dd.className = 'shelf-dropdown visible'
+      activeDropdown = dd
+    }
+  }
+
+  window.addToShelf = function (bookId, shelf, event) {
+    event.stopPropagation()
+    if (activeDropdown) {
+      activeDropdown.className = 'shelf-dropdown'
+      activeDropdown = null
+    }
+    // This would be handled by the host via tool call in the real flow
+    showToast('Added to "' + shelf + '"')
+  }
+
+  // Close dropdown on outside click
+  document.addEventListener('click', function () {
+    if (activeDropdown) {
+      activeDropdown.className = 'shelf-dropdown'
+      activeDropdown = null
+    }
+  })
+
+  // ---- Render functions ----
+  function renderBookCard(book, index, isExpanded) {
+    var thumb = book.thumbnail || book.imageLinks && book.imageLinks.thumbnail || ''
+    var title = book.title || 'Untitled'
+    var authors = book.authors ? (Array.isArray(book.authors) ? book.authors.join(', ') : book.authors) : 'Unknown author'
+    var pages = book.pageCount ? book.pageCount + ' pages' : ''
+    var description = book.description || ''
+    var bookId = 'book-' + index
+
+    var html = '<div class="book-card fade-in' + (isExpanded ? ' expanded' : '') + '" id="' + bookId + '">'
+
+    // Thumbnail
+    html += '<div class="book-thumb-wrapper">'
+    if (thumb) {
+      html += '<img src="' + escapeHtml(thumb) + '" alt="' + escapeHtml(title) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'" />'
+      html += '<div class="book-thumb-placeholder" style="display:none;">&#x1F4D6;</div>'
+    } else {
+      html += '<div class="book-thumb-placeholder">&#x1F4D6;</div>'
+    }
+    html += '</div>'
+
+    // Info
+    html += '<div class="book-info">'
+    html += '<div class="book-title">' + escapeHtml(title) + '</div>'
+    html += '<div class="book-authors">' + escapeHtml(authors) + '</div>'
+    if (pages) {
+      html += '<div class="book-pages">' + escapeHtml(pages) + '</div>'
+    }
+    if (description) {
+      html += '<div class="book-description' + (isExpanded ? ' full' : '') + '">' + escapeHtml(description) + '</div>'
+    }
+
+    // Expanded detail fields
+    if (isExpanded) {
+      html += '<div class="book-detail-fields">'
+      if (book.publisher) {
+        html += '<div class="detail-row"><span class="detail-label">Publisher:</span> ' + escapeHtml(book.publisher) + '</div>'
+      }
+      if (book.publishedDate) {
+        html += '<div class="detail-row"><span class="detail-label">Published:</span> ' + escapeHtml(book.publishedDate) + '</div>'
+      }
+      if (book.categories) {
+        var cats = Array.isArray(book.categories) ? book.categories.join(', ') : book.categories
+        html += '<div class="detail-row"><span class="detail-label">Categories:</span> ' + escapeHtml(cats) + '</div>'
+      }
+      if (book.averageRating) {
+        html += '<div class="detail-row"><span class="detail-label">Rating:</span> ' + escapeHtml(String(book.averageRating)) + '/5</div>'
+      }
+      if (book.isbn) {
+        html += '<div class="detail-row"><span class="detail-label">ISBN:</span> ' + escapeHtml(book.isbn) + '</div>'
+      }
+      html += '</div>'
+    }
+
+    // Add to shelf button
+    html += '<div class="shelf-btn-wrapper">'
+    html += '<button class="shelf-btn" ' + (isAuthenticated ? '' : 'disabled') + ' onclick="toggleShelfDropdown(' + index + ', event)">Add to shelf &#x25BC;</button>'
+    html += '<div class="shelf-dropdown" id="dropdown-' + index + '">'
+    html += '<button class="shelf-option" onclick="addToShelf(' + index + ', \'To Read\', event)">To Read</button>'
+    html += '<button class="shelf-option" onclick="addToShelf(' + index + ', \'Reading Now\', event)">Reading Now</button>'
+    html += '<button class="shelf-option" onclick="addToShelf(' + index + ', \'Have Read\', event)">Have Read</button>'
+    html += '</div>'
+    html += '</div>'
+
+    html += '</div>' // .book-info
+    html += '</div>' // .book-card
+
+    return html
+  }
+
+  function renderSearchResults(data) {
+    var books = data.items || data.books || []
+    currentBooks = books
+
+    els.initState.className = 'init-state hidden'
+    els.loadingSpinner.className = 'loading-spinner'
+    els.readingList.className = 'reading-list'
+    els.searchResults.className = 'search-results visible'
+
+    els.resultCount.textContent = books.length + ' found'
+
+    var html = ''
+    for (var i = 0; i < books.length; i++) {
+      var book = books[i].volumeInfo || books[i]
+      html += renderBookCard(book, i, false)
+    }
+
+    if (books.length === 0) {
+      html = '<div style="text-align:center; padding:30px 0; color:#6a6a88; font-size:12px;">No books found.</div>'
+    }
+
+    els.searchResultCards.innerHTML = html
+
+    ChatBridge.sendStateUpdate({ bookCount: books.length, authenticated: isAuthenticated })
+    return { displayed: true, count: books.length }
+  }
+
+  function renderBookDetails(data) {
+    var book = data.volumeInfo || data
+    els.initState.className = 'init-state hidden'
+    els.loadingSpinner.className = 'loading-spinner'
+    els.searchResults.className = 'search-results visible'
+
+    els.resultCount.textContent = 'Book Details'
+
+    var html = renderBookCard(book, 0, true)
+    els.searchResultCards.innerHTML = html
+
+    ChatBridge.sendStateUpdate({ viewingDetails: true, title: book.title, authenticated: isAuthenticated })
+    return { displayed: true }
+  }
+
+  function renderReadingList(data) {
+    var books = data.items || data.books || []
+    els.initState.className = 'init-state hidden'
+    els.loadingSpinner.className = 'loading-spinner'
+    els.searchResults.className = 'search-results'
+    els.readingList.className = 'reading-list visible'
+
+    if (books.length === 0) {
+      els.readingListEmpty.style.display = 'block'
+      els.readingListCards.innerHTML = ''
+    } else {
+      els.readingListEmpty.style.display = 'none'
+      var html = ''
+      for (var i = 0; i < books.length; i++) {
+        var book = books[i].volumeInfo || books[i]
+        html += renderBookCard(book, i, false)
+      }
+      els.readingListCards.innerHTML = html
+    }
+
+    ChatBridge.sendStateUpdate({ shelfCount: books.length, authenticated: isAuthenticated })
+    return { displayed: true, count: books.length }
+  }
+
+  function renderShelfConfirmation(data) {
+    var title = data.title || data.bookTitle || 'Book'
+    var shelf = data.shelf || data.shelfName || 'shelf'
+    showToast('Added "' + title + '" to ' + shelf)
+    return { displayed: true }
+  }
+
+  function renderShelfRemoval(data) {
+    var title = data.title || data.bookTitle || 'Book'
+    var shelf = data.shelf || data.shelfName || 'shelf'
+    showToast('Removed "' + title + '" from ' + shelf)
+    return { displayed: true }
+  }
+
+  // ---- Bridge handlers ----
+  ChatBridge.on('app_init', function (payload) {
+    ChatBridge.sendStateUpdate({ status: 'ready', authenticated: isAuthenticated })
+    return { status: 'initialized' }
+  })
+
+  ChatBridge.onToolCall(function (toolName, params) {
+    if (params.__proxyResult) {
+      if (toolName === 'search_books') return renderSearchResults(params.__proxyResult)
+      if (toolName === 'get_book_details') return renderBookDetails(params.__proxyResult)
+      if (toolName === 'get_reading_list') return renderReadingList(params.__proxyResult)
+      if (toolName === 'add_to_shelf') return renderShelfConfirmation(params.__proxyResult)
+      if (toolName === 'remove_from_shelf') return renderShelfRemoval(params.__proxyResult)
+      return params.__proxyResult
+    }
+  })
+
+  // ---- Init ----
+  ChatBridge.sendStateUpdate({ status: 'ready', authenticated: isAuthenticated })
+})()
+</script>
+</body>
+</html>
