@@ -1,6 +1,43 @@
 # ChatBridge Cost Analysis
 
-This document breaks down the operating costs for ChatBridge, covering LLM API usage, backend infrastructure, and hosting. All estimates are based on actual token measurements from the application.
+This document breaks down the operating costs for ChatBridge, covering development costs, LLM API usage, backend infrastructure, and hosting. All estimates are based on actual token measurements from the application.
+
+---
+
+## 0. Development & Testing Costs
+
+### Methodology
+
+Development was done using Claude Code (Anthropic CLI) with Claude Opus over a 4-day sprint (April 2--5, 2026). Session logs from the Claude Code project directory provide the primary cost data. Earlier sessions (April 2--3) were not retained, so the figures below are a lower bound.
+
+### Measured Data (Claude Code Sessions)
+
+| Metric | Value |
+|--------|-------|
+| Session files (incl. subagents) | 34 |
+| Total session data | ~22 MB JSONL |
+| Development days | 4 (April 2, 3, 5 active; April 4 idle) |
+| Commits produced | ~40 |
+
+### Estimated Token Consumption
+
+Claude Code session JSONL includes prompts, responses, tool calls, and tool results. Each assistant turn re-sends the full conversation context, so raw file size underestimates total API tokens consumed. Conservative estimate based on session structure:
+
+| Component | Estimate |
+|-----------|----------|
+| Retained sessions (April 5) | ~22 MB raw, ~3--4M tokens consumed |
+| Lost sessions (April 2--3) | ~30--50% additional based on commit volume |
+| **Estimated total tokens** | **~5--6M tokens** |
+
+### Estimated Development Cost
+
+| Model | Rate | Est. Input Tokens | Est. Output Tokens | Est. Cost |
+|-------|------|-------------------|---------------------|-----------|
+| Claude Opus (via Claude Code) | $15/$75 per 1M in/out | ~4M | ~1.5M | ~$172 |
+
+This covers all code generation, planning, documentation, and testing done through Claude Code. No OpenAI API costs were incurred during development -- the app's LLM calls use the user's own API key at runtime, and manual testing used minimal tokens.
+
+**Other AI-related costs:** $0 (no embeddings, fine-tuning, or separate hosting).
 
 ---
 
@@ -71,6 +108,25 @@ GPT-4o costs roughly **17x more** than GPT-4o mini for the same usage. For most 
 | Grade level (5 classes) | 150 | 15,000 | ~$9 |
 | School-wide (20 classes) | 600 | 60,000 | ~$36 |
 | District (10 schools) | 6,000 | 600,000 | ~$360 |
+
+### Production Cost Projections by User Count
+
+Assumptions: 5 queries/user/day, 20 active days/month, average 2,500 tokens/query (blended), GPT-4o mini pricing ($0.15/$0.60 per 1M in/out), Supabase free tier up to ~1K users.
+
+| | 100 Users | 1,000 Users | 10,000 Users | 100,000 Users |
+|--|-----------|-------------|--------------|---------------|
+| Queries/month | 10,000 | 100,000 | 1,000,000 | 10,000,000 |
+| Input tokens/month | 20M | 200M | 2B | 20B |
+| Output tokens/month | 5M | 50M | 500M | 5B |
+| **LLM API** | $6 | $60 | $600 | $6,000 |
+| Supabase | $0 (free) | $25 (Pro) | $25 (Pro) | $599 (Team) |
+| Hosting | $0 (free tier) | $0 (free tier) | $20 (Pro) | $150+ (dedicated) |
+| **Total** | **~$6/month** | **~$85/month** | **~$645/month** | **~$6,750/month** |
+
+Notes:
+- At 10K+ users, prompt caching (50% discount on repeated system prompt tokens) and conversation compaction reduce LLM costs by 30--40%.
+- 100K users would likely require a dedicated backend, load balancing, and Supabase Team or self-hosted Postgres.
+- Per-user cost decreases with scale: $0.06/user at 100 users down to ~$0.07/user at 100K users (infrastructure overhead amortized).
 
 ---
 

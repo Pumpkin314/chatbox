@@ -102,6 +102,25 @@ export async function routeToolCall(toolName: string, args: Record<string, unkno
     return JSON.stringify(result)
   }
 
+  // OAuth2 PKCE apps — check if tool requires auth
+  if (activeApp?.authConfig?.type === 'oauth2_pkce') {
+    const OAUTH_REQUIRED_TOOLS = new Set(['get_reading_list', 'add_to_shelf', 'remove_from_shelf'])
+
+    if (OAUTH_REQUIRED_TOOLS.has(toolName)) {
+      // Sprint 2 will add real token lookup here
+      return JSON.stringify({ error: 'auth_required', message: 'Please sign in with Google to manage your reading list' })
+    }
+
+    // Non-OAuth tools (search_books, get_book_details) use API key proxy
+    const apiKey = (typeof import.meta !== 'undefined' && (import.meta as Record<string, Record<string, string>>).env?.['VITE_GOOGLE_BOOKS_API_KEY']) || ''
+    const result = await executeHostProxiedTool(toolName, args, apiKey)
+    // Forward to iframe
+    if (bridgeRef) {
+      bridgeRef.sendToolCall(toolName, { ...args, __proxyResult: result }).catch(() => {})
+    }
+    return JSON.stringify(result)
+  }
+
   // App-specific tool — route through bridge
   if (!bridgeRef) {
     return JSON.stringify({
@@ -239,6 +258,50 @@ async function executeHostProxiedTool(
       return { element_count: data.element_count ?? allObjects.length, near_earth_objects: allObjects, start_date: startDate, end_date: endDate }
     }
 
+    if (toolName === 'search_books') {
+      const query = args.query as string
+      const maxResults = (args.maxResults as number) || 10
+      if (!apiKey) return getMockBooks()
+      const res = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=${maxResults}&key=${apiKey}`,
+      )
+      if (!res.ok) return getMockBooks()
+      const data = await res.json()
+      const books = ((data.items as Record<string, unknown>[]) || []).map((item: Record<string, unknown>) => {
+        const info = item.volumeInfo as Record<string, unknown>
+        const desc = (info.description as string) || ''
+        return {
+          id: item.id,
+          title: info.title,
+          authors: (info.authors as string[]) || [],
+          thumbnail: (info.imageLinks as Record<string, unknown>)?.thumbnail ?? null,
+          pageCount: info.pageCount ?? null,
+          description: desc.length > 200 ? desc.slice(0, 200) + '...' : desc,
+        }
+      })
+      return { books }
+    }
+
+    if (toolName === 'get_book_details') {
+      const volumeId = args.volume_id as string
+      if (!apiKey) return getMockBookDetails()
+      const res = await fetch(
+        `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(volumeId)}?key=${apiKey}`,
+      )
+      if (!res.ok) return getMockBookDetails()
+      const data = await res.json()
+      const info = (data.volumeInfo as Record<string, unknown>) || {}
+      return {
+        title: info.title ?? 'Unknown',
+        authors: (info.authors as string[]) || [],
+        description: (info.description as string) || '',
+        pageCount: info.pageCount ?? null,
+        categories: (info.categories as string[]) || [],
+        previewLink: (info.previewLink as string) || null,
+        thumbnail: (info.imageLinks as Record<string, unknown>)?.thumbnail ?? null,
+      }
+    }
+
     return { success: false, error: `Unknown proxied tool: ${toolName}` }
   } catch (err) {
     // Fallback to mock data on any error
@@ -247,6 +310,8 @@ async function executeHostProxiedTool(
     if (toolName === 'get_apod') return getMockAPOD((args.date as string) || new Date().toISOString().split('T')[0])
     if (toolName === 'get_mars_photos') return getMockMarsPhotos((args.rover as string) || 'curiosity', (args.earth_date as string) || '2024-01-15')
     if (toolName === 'get_asteroids') return getMockAsteroids((args.start_date as string) || new Date().toISOString().split('T')[0], (args.end_date as string) || '')
+    if (toolName === 'search_books') return getMockBooks()
+    if (toolName === 'get_book_details') return getMockBookDetails()
     return { success: false, error: String(err) }
   }
 }
@@ -514,6 +579,51 @@ function getMockMarsPhotos(rover: string, earthDate: string): Record<string, unk
     rover: rover.charAt(0).toUpperCase() + rover.slice(1),
   }))
   return { photos, rover, earth_date: earthDate, mock: true }
+}
+
+function getMockBooks(): Record<string, unknown> {
+  return {
+    books: [
+      {
+        id: 'mock_vol_1',
+        title: 'The Rise and Fall of the Dinosaurs',
+        authors: ['Steve Brusatte'],
+        thumbnail: 'https://books.google.com/books/content?id=mock1&printsec=frontcover&img=1&zoom=1',
+        pageCount: 416,
+        description: 'The fascinating story of dinosaur evolution, from their origins to their extinction, told by a leading paleontologist.',
+      },
+      {
+        id: 'mock_vol_2',
+        title: 'Dinosaurs: A Very Short Introduction',
+        authors: ['David Norman'],
+        thumbnail: 'https://books.google.com/books/content?id=mock2&printsec=frontcover&img=1&zoom=1',
+        pageCount: 176,
+        description: 'A concise introduction to the world of dinosaurs, covering their biology, behavior, and the science of paleontology.',
+      },
+      {
+        id: 'mock_vol_3',
+        title: 'My Dear Dino: A Dinosaur Adventure',
+        authors: ['Luna Garcia', 'Marcus Chen'],
+        thumbnail: 'https://books.google.com/books/content?id=mock3&printsec=frontcover&img=1&zoom=1',
+        pageCount: 32,
+        description: 'A charming picture book about a child who discovers a friendly dinosaur in their backyard.',
+      },
+    ],
+    mock: true,
+  }
+}
+
+function getMockBookDetails(): Record<string, unknown> {
+  return {
+    title: 'The Rise and Fall of the Dinosaurs',
+    authors: ['Steve Brusatte'],
+    description: 'Sixty-six million years ago, the dinosaurs were wiped out in an instant by an asteroid impact. But the story of their rise is just as dramatic. In this gripping narrative, Steve Brusatte traces the evolution of dinosaurs from their humble origins to their reign as the dominant animals on Earth.',
+    pageCount: 416,
+    categories: ['Science', 'Paleontology'],
+    previewLink: 'https://books.google.com/books?id=mock_vol_1&printsec=frontcover',
+    thumbnail: 'https://books.google.com/books/content?id=mock_vol_1&printsec=frontcover&img=1&zoom=1',
+    mock: true,
+  }
 }
 
 function getMockAsteroids(startDate: string, endDate: string): Record<string, unknown> {
