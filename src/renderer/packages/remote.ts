@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getLogger } from '@/lib/utils'
 import platform from '@/platform'
 import { authInfoStore } from '@/stores/authInfoStore'
-import { CHATBOX_BUILD_CHANNEL, USE_BETA_API, USE_BETA_CHATBOX, USE_LOCAL_API, USE_LOCAL_CHATBOX } from '@/variables'
+import { CHATBOX_BUILD_CHANNEL, CHATBOX_BUILD_PLATFORM, USE_BETA_API, USE_BETA_CHATBOX, USE_LOCAL_API, USE_LOCAL_CHATBOX } from '@/variables'
 import * as chatboxaiAPI from '../../shared/request/chatboxai_pool'
 import { createAfetch, createAuthenticatedAfetch, uploadFile } from '../../shared/request/request'
 import {
@@ -91,6 +91,11 @@ async function getAuthenticatedAfetch() {
 
 // const RELEASE_ORIGIN = 'https://releases.chatboxai.app'
 function getAPIOrigin() {
+  // Web builds cannot reach api.chatboxai.app (CORS blocked).
+  // Return empty string so ofetch fails with a URL error, not a network request.
+  if (CHATBOX_BUILD_PLATFORM === 'web') {
+    return ''
+  }
   if (USE_LOCAL_API) {
     return 'http://localhost:8002'
   } else if (USE_BETA_API) {
