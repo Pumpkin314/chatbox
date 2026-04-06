@@ -8,8 +8,11 @@ Each app is a directory containing `index.html` (and optionally `__tests__/`):
 
 - `chess/` — Chess game with AI move suggestions
 - `weather/` — Weather display with location lookup
-- `spotify/` — Spotify playback control (currently disabled)
+- `spotify/` — Spotify playback control (MOCK ONLY — disabled in registry, not functional)
 - `rubiks/` — Rubik's cube visualization
+- `nasa/` — NASA Space Explorer (APOD, Mars rover photos, asteroids)
+- `contract-test/` — Minimal app for verifying the ChatBridge plugin contract
+- `google-books/` — Google Books reading assistant (OAuth2 PKCE authenticated)
 
 ## Build Pipeline
 

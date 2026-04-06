@@ -12,7 +12,8 @@ The core bridge system connecting LLM tool calls to embedded app iframes.
 - `bridge-sdk.js` — Injected into app iframes; provides the app-side API
 - `registry/` — App registry (apps.json + types)
 - `apps/` — App HTML source of truth (served via Vite plugin, NOT from public/)
-- `auth.ts` / `supabase.ts` / `storage.ts` / `chatStoreSupabase.ts` — Auth and persistence
+- `auth.ts` / `supabase.ts` / `storage.ts` / `chatStoreSupabase.ts` — Supabase user auth and persistence
+- `oauth.ts` — Third-party app OAuth (e.g., Google Books OAuth2 PKCE flow). Separate from auth.ts which handles Supabase user authentication.
 - `messagePersistence.ts` — Message save helpers
 - `token-logger.ts` — Token usage tracking
 
