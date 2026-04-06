@@ -45,7 +45,7 @@ Register in `apps.json` as specified in the skeleton spec. All 5 tools visible a
     {"name": "get_book_details", "description": "Get detailed information about a book", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}}, "required": ["volume_id"]}},
     {"name": "get_reading_list", "description": "Get the student's reading list from Google Books", "parameters": {"type": "object", "properties": {"shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read", "all"], "default": "all"}}}},
     {"name": "add_to_shelf", "description": "Add a book to a reading list shelf", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}, "shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read"]}}, "required": ["volume_id", "shelf"]}},
-    {"name": "remove_from_shelf", "description": "Remove a book from a shelf", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}, "shelf": {"type": "string"}}, "required": ["volume_id", "shelf"]}}
+    {"name": "remove_from_shelf", "description": "Remove a book from a shelf", "parameters": {"type": "object", "properties": {"volume_id": {"type": "string"}, "shelf": {"type": "string", "enum": ["to_read", "reading_now", "have_read"]}}, "required": ["volume_id", "shelf"]}}
   ],
   "entrypoint": "/apps/google-books/index.html",
   "authConfig": {
@@ -86,9 +86,34 @@ GET https://www.googleapis.com/books/v1/volumes/{volumeId}?key={apiKey}
 ```
 Parse `volumeInfo` → return `{title, authors, description, pageCount, categories, previewLink, thumbnail}`.
 
-**Mock fallback:** When `VITE_GOOGLE_BOOKS_API_KEY` is missing, return 3 hardcoded book objects.
+**Return shape:** `search_books` returns `{books: [{id, title, authors, thumbnail, pageCount, description}]}` (wrapped in `books` array). `get_book_details` returns the flat object.
+
+**Mock fallback:** When `VITE_GOOGLE_BOOKS_API_KEY` is missing, return 3 hardcoded book objects in the same shape.
 
 **Result forwarding:** Both tools forward results to iframe via `__proxyResult`.
+
+### Host-Proxied API Calls (OAuth — Bookshelf Tools)
+
+All three OAuth tools are also host-proxied. The iframe never receives or stores tokens. The host retrieves the access token from Supabase, makes the Google API call with a `Bearer` header, and forwards the result to the iframe via `__proxyResult`.
+
+**`get_reading_list`:**
+- If `shelf` is a specific shelf: `GET https://www.googleapis.com/books/v1/mylibrary/bookshelves/{shelfId}/volumes` with `Authorization: Bearer {token}`
+- If `shelf` is `"all"`: make 3 parallel requests for shelves 2, 3, and 4. Merge results into `{shelves: [{name, id, books: [...]}]}`.
+- Shelf enum → ID mapping: `to_read=2, reading_now=3, have_read=4`
+
+**`add_to_shelf`:**
+```
+POST https://www.googleapis.com/books/v1/mylibrary/bookshelves/{shelfId}/addVolume?volumeId={volume_id}
+Authorization: Bearer {token}
+```
+Returns 204 No Content. Synthesize result: `{success: true, shelfName, bookTitle}` (bookTitle from a follow-up `GET /volumes/{id}` or cached from prior search).
+
+**`remove_from_shelf`:**
+```
+POST https://www.googleapis.com/books/v1/mylibrary/bookshelves/{shelfId}/removeVolume?volumeId={volume_id}
+Authorization: Bearer {token}
+```
+Returns 204 No Content. Synthesize result: `{success: true}`.
 
 ---
 
@@ -141,6 +166,18 @@ Host-mediated OAuth. The iframe never touches Google directly.
 - `code_challenge`: `base64url(SHA-256(code_verifier))`
 - `code_challenge_method`: `S256`
 - Stored in `Map<state, {verifier, appId}>` with 5-minute TTL cleanup
+
+### Message Protocol Clarification
+
+Three new message types are introduced. They use different protocols:
+
+| Message | Direction | Protocol | Notes |
+|---------|-----------|----------|-------|
+| `auth_request` | Iframe → Host | BridgeMessage (has `id`, `timestamp`) | Sent via `ChatBridge.send()` through the existing bridge |
+| `auth_result` | Host → Iframe | BridgeMessage (has `id`, `timestamp`) | Sent via `bridge.sendMessage()` to iframe |
+| `oauth_callback` | Popup → Host | Raw `postMessage` (no `id`, no `timestamp`) | The popup does NOT use bridge-sdk.js. It sends a plain `{type, code, state}` object. The host listener for this message is on `window` (not the iframe bridge), and validates by checking `type === 'oauth_callback'` and looking up `state` in the PKCE map. |
+
+The plugin contract is not modified — `auth_request`/`auth_result` are implementation-level messages for the OAuth subsystem, not part of the general bridge protocol.
 
 ---
 
@@ -198,9 +235,10 @@ All 5 tools check `params.__proxyResult` first (host already fetched data):
 
 ### Auth Flow Trigger
 
-- User clicks "Sign in with Google" button
-- Button calls `ChatBridge.send('auth_request', {provider: 'google', appId: 'google-books'})`
-- On `auth_result` with `success: true` → `isAuthenticated = true`, update UI
+- User clicks "Sign in with Google" button in iframe
+- Button calls `ChatBridge.send('auth_request', {provider: 'google', appId: 'google-books'})` — this sends a postMessage to the host
+- **The host (SidePanel.tsx) calls `window.open()` to open the Google consent popup.** The iframe never opens a popup — `allow-popups` is not in the sandbox. The popup is opened from host context.
+- On receiving `auth_result` message (host → iframe via postMessage) with `success: true` → `isAuthenticated = true`, update UI
 
 ### State Resilience
 
@@ -210,7 +248,7 @@ No localStorage (sandbox blocks it). If iframe reloads, auth UI state resets —
 
 ## 6. OAuth Callback Page
 
-`src/renderer/chatbridge/oauth-callback.html` — ~30 lines of HTML/JS. Copied to build output by Vite plugin.
+`src/renderer/chatbridge/oauth-callback.html` — ~30 lines of HTML/JS. Copied to build output at `/auth/callback.html` by the Vite copy plugin (same plugin that copies app HTML files, configured in `vite.config.ts`). The source path is `src/renderer/chatbridge/oauth-callback.html` and the output path is `dist/auth/callback.html`, served at `http://localhost:3000/auth/callback.html` in dev.
 
 **Behavior:**
 1. Extracts `code` and `state` (or `error`) from URL query params
@@ -259,7 +297,7 @@ No localStorage (sandbox blocks it). If iframe reloads, auth UI state resets —
 
 | File | Purpose |
 |------|---------|
-| `src/renderer/chatbridge/oauth.ts` | PKCE helpers, startOAuthFlow, handleOAuthCallback, exchangeCodeForTokens, refreshToken, mutex |
+| `src/renderer/chatbridge/oauth.ts` | PKCE helpers, startOAuthFlow, handleOAuthCallback, exchangeCodeForTokens, refreshToken, mutex. **Note:** `auth.ts` already exists for Supabase user auth (session atoms, sign-in/sign-out). `oauth.ts` is app-level OAuth for third-party providers — distinct concern. |
 | `src/renderer/chatbridge/oauth-callback.html` | Minimal popup callback page (~30 lines) |
 | `src/renderer/chatbridge/apps/google-books/index.html` | Iframe app — search UI, bookshelf tabs, auth banner |
 | `src/renderer/chatbridge/__tests__/oauth.test.ts` | OAuth unit tests |
@@ -274,7 +312,7 @@ No localStorage (sandbox blocks it). If iframe reloads, auth UI state resets —
 | `src/renderer/chatbridge/tool-router.ts` | Add `oauth2_pkce` code path, Google Books API proxy branches, token check/refresh |
 | `src/renderer/components/chatbridge/SidePanel.tsx` | Add `auth_request` listener (from iframe), `oauth_callback` listener (from popup) |
 | `src/renderer/chatbridge/bridge.ts` | Add `auth_request`, `auth_result` to message type constants |
-| Vite config / copy plugin | Add `oauth-callback.html` to copy list |
+| Vite config / copy plugin | Add `oauth-callback.html` → `dist/auth/callback.html` mapping |
 
 ### Not Modified
 
@@ -293,7 +331,7 @@ No localStorage (sandbox blocks it). If iframe reloads, auth UI state resets —
 3. Build iframe app with search UI and book cards
 4. Mock data fallback
 5. Unit + E2E tests for search flow
-6. **Deliverable:** Working Tier 3-equivalent app with search. OAuth tools registered but return `auth_required`.
+6. **Deliverable:** Working app with search. Registry uses `external_authenticated` with `oauth2_pkce` from day one (not temporarily `external_public`). OAuth tools are registered but return `auth_required` until Sprint 3 wires up the token flow.
 
 ### Sprint 3: OAuth Implementation
 
